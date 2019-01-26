@@ -3,6 +3,7 @@ library(tidyverse)
 library(readxl)
 library(dbplyr)
 library(dplyr)
+library(directlabels)
 library(ggridges)
 library(viridis)
 library(haven)
@@ -48,11 +49,16 @@ WB_account$MEX<-0
 WB_account$MEX[WB_account$`Country Code`=='MEX']<-1
 
 #Make a graph to understand the evolution of the distribution for the accounts indicator. 
-p1<-WB_account %>% ggplot(aes(y=year,x=account.t.d,fill=..x..))+
-  facet_wrap(~Group,scales = 'free')+
-  geom_density_ridges_gradient(scale =1.2, alpha = 0.9,)+
-  scale_fill_viridis(name = "Percentage (%)", option = "C")+
-  labs(subtitle = "Evolution of the distribution of account ownership indicator in 126 countries.",title="Account ownership at a financial institution or with a mobile-money-service provider", caption="World Bank Group: Global Findex database",y="Year",x="Proportion of account ownership per 100 inhabitants")
+p1<-WB_account %>% ggplot(aes(y=year,x=account.t.d/100,fill=..x..))+
+  geom_density_ridges_gradient(scale =1.25, alpha = 0.9,)+
+  scale_fill_viridis(name = "Accounts", option = "C")+
+  labs(title = "Evolution of the distribution of account ownership indicator in 126 countries.",subtitle="Every year the account ownership at a financial institution or with a mobile-money-service provider in the world is increasing.", caption="World Bank Group: Global Findex database",y="Year",x="Average number of accounts per inhabitant")+
+  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
+        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        plot.subtitle =element_text(color = "grey20", size = 15, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 20, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
 ggsave(here("output","plot1.pdf"), p1,width = 30, height = 25, units = "cm")
 
@@ -92,11 +98,22 @@ WB_account<-WB_account %>%
   group_by(`Region Code`)
 
 
+region_colors<-c("High income" = "blue4","Middle income" = "blue3","Low income" = "blue2","World" = "grey50", "Mexico" = "green4")
+
 #Make a graph to compare Mexico with groups of countries by income. 
-p2<-WB_account %>% ggplot(aes(x=year,y=account.t.d,group=`Region Name`))+
-  geom_line(aes(color=`Region Name`))+
+p2<-WB_account %>% ggplot(aes(x=year,y=account.t.d/100, group=`Region Name`))+
+  geom_line(aes(color=`Region Name`), show.legend = FALSE)+
+  geom_dl(aes(label = `Region Name`), method=list(dl.trans(x = x + 0.5), "last.points", cex = 0.8))+
   geom_point(aes(size=`GDP per capita`,color=`Region Name`),alpha=0.5)+
-  labs(subtitle = "Account ownership indicator and GDP per capita by Income Region and year.",title="While most countries have improved, Mexico has not.", caption="World Bank Group: Global Findex and World Development Indicators datasets.",x="Year",y="Proportion per 100 inhabitants")
+  scale_colour_manual(values=region_colors, guide=FALSE)+
+  labs(subtitle = "Account ownership indicator and GDP per capita by Income Region and year.",title="While most countries have improved, Mexico has not.", caption="World Bank Group: Global Findex and World Development Indicators datasets.",x="Year",y="Average number of accounts per inhabitant")+
+  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
+        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        plot.subtitle =element_text(color = "grey20", size = 15, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 20, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
 
 ggsave(here("output","plot2.pdf"), p2,width = 30, height = 25, units = "cm")
 
@@ -166,19 +183,26 @@ MEX_indicators<-MEX_indicators %>%
 
 MEX_indicators$SEXO[MEX_indicators$SEXO=='1']<-'Male'
 MEX_indicators$SEXO[MEX_indicators$SEXO=='2']<-'Female'
-MEX_indicators$TLOC[MEX_indicators$TLOC=='1']<-'4. 100,000+'
-MEX_indicators$TLOC[MEX_indicators$TLOC=='2']<-'3. 15,000-99,999'
-MEX_indicators$TLOC[MEX_indicators$TLOC=='3']<-'2. 2,500-14,999'
-MEX_indicators$TLOC[MEX_indicators$TLOC=='4']<-'1. < 2,500'
+MEX_indicators$TLOC[MEX_indicators$TLOC=='1']<-'> 100,000'
+MEX_indicators$TLOC[MEX_indicators$TLOC=='2']<-'15,000-99,999'
+MEX_indicators$TLOC[MEX_indicators$TLOC=='3']<-'2,500-14,999'
+MEX_indicators$TLOC[MEX_indicators$TLOC=='4']<-'< 2,500'
 
 names(MEX_indicators)<-c('Gender', 'Community Size', 'Financial Service', 'Indicator')
 
-
 p3<-MEX_indicators %>% ggplot(aes(y=Indicator,x=`Community Size`,fill=`Gender`))+
   facet_wrap(~`Financial Service`,scales = 'free')+
-  ylim(0,75)+
+  scale_y_continuous(expand = c(0,0),limits = c(0,75))+
   geom_bar(stat='Identity',position=position_dodge())+
+  scale_x_discrete(limits=c('< 2,500', '2,500-14,999','15,000-99,999', '> 100,000'))+
   geom_text(aes(label=round(Indicator,digits=2)),position=position_dodge(0.9), vjust=-1)+
-  labs(subtitle = "Finacial services adoption by gender, community size and services.",title="Financial Services adoption in Mexico as of 2018.", caption="INEGI: National Survery of Financial Inclusion 2018.",x="Community size by number of inhabitants",y="Percentage of population between 18 and 70 years with a financial service account.")
+  labs(subtitle = "The critical gaps for the financial services adoption in the country depends more on the community size than in the gender.",title="With the exception of retirement services, the financial services adoption in Mexico is similar across genders.", caption="INEGI: National Survery of Financial Inclusion 2018.",x="Community size by number of inhabitants",y="Percentage of population between 18 and 70 years with a financial service account")+
+  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
+        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        plot.subtitle =element_text(color = "grey20", size = 15, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
 
 ggsave(here("output","plot3.pdf"), p3,width = 30, height = 25, units = "cm")
