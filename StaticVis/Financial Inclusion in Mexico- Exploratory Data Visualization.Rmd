@@ -1,3 +1,12 @@
+---
+title: "Financial Inclusion in Mexico"
+author: "Esteban Castaneda"
+date: "January 27, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 library(here)
 library(tidyverse)
 library(readxl)
@@ -9,6 +18,17 @@ library(treemapify)
 library(viridis)
 library(haven)
 
+```
+
+## Introduction
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## Graph 1
+
+```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE}
 #Read the World Bank Global Findex data and the GDP per capita from the World Development Indicators data: 
 WB_GFdata<-read_excel(path=here('Data','FINDEXEXCEL.xlsx'),sheet = 'Data'
                     ,range=cell_rows(1:142009)
@@ -50,8 +70,8 @@ WB_account$MEX<-0
 WB_account$MEX[WB_account$`Country Code`=='MEX']<-1
 
 #Make a graph to understand the evolution of the distribution for the accounts indicator. 
-p1<-WB_account %>% ggplot(aes(y=year,x=account.t.d/100,fill=..x..))+
-  geom_density_ridges_gradient(scale =1.25, alpha = 0.9,)+
+WB_account %>% ggplot(aes(y=year,x=account.t.d/100,fill=..x..))+
+  geom_density_ridges_gradient(scale =1.25, alpha = 0.9)+
   scale_fill_viridis(name = "Accounts", option = "C")+
   labs(title = "Evolution of the distribution of account ownership indicator in 126 countries.",subtitle="Every year the account ownership at a financial institution or with a mobile-money-service provider in the world is increasing.", caption="World Bank Group: Global Findex database",y="Year",x="Average number of accounts per inhabitant")+
   theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
@@ -61,12 +81,14 @@ p1<-WB_account %>% ggplot(aes(y=year,x=account.t.d/100,fill=..x..))+
         plot.subtitle =element_text(color = "grey20", size = 15, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 20, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
-ggsave(here("output","plot1.pdf"), p1,width = 35, height = 25, units = "cm")
 
 
-#Graph 2
-# From World Development data we filter the Account (% age 15+) indicator and GDP percapita only for countries without NA.
-# From Global Findex data we filter the Account (% age 15+) indicator only for countries without NA.
+```
+
+## Graph 2
+
+```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE}
+
 WB_account<-WB_GFdata %>% 
   filter(`Indicator Code`=='account.t.d', !is.na(`2011`),!is.na(`2014`),!is.na(`2017`))
 
@@ -102,7 +124,7 @@ WB_account<-WB_account %>%
 region_colors<-c("High income" = "blue4","Middle income" = "blue3","Low income" = "blue2","World" = "grey50", "Mexico" = "green4")
 
 #Make a graph to compare Mexico with groups of countries by income. 
-p2<-WB_account %>% ggplot(aes(x=year,y=account.t.d/100, group=`Region Name`))+
+WB_account %>% ggplot(aes(x=year,y=account.t.d/100, group=`Region Name`))+
   geom_line(aes(color=`Region Name`), show.legend = FALSE)+
   geom_dl(aes(label = `Region Name`), method=list(dl.trans(x = x + 0.5), "last.points", cex = 0.8))+
   geom_point(aes(size=`GDP per capita`,color=`Region Name`),alpha=0.5)+
@@ -116,9 +138,11 @@ p2<-WB_account %>% ggplot(aes(x=year,y=account.t.d/100, group=`Region Name`))+
         plot.title =element_text(color = "grey20", size = 20, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
 
-ggsave(here("output","plot2.pdf"), p2,width = 35, height = 25, units = "cm")
+```
 
-#Read data from the National Financial Inclusion Survery 2018:
+## Graph 3
+
+```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE}
 ENIF18_df1<-read_excel(path=here('Data','tmodulo.xlsx'),sheet = 'tmodulo'
                        ,range=cell_rows(1:12447)
                        ,col_names = TRUE
@@ -139,6 +163,7 @@ ENIF18_df1$TLOC[ENIF18_df1$TLOC==4]<-2
 ENIF18_df2$TLOC[ENIF18_df2$TLOC==2]<-1
 ENIF18_df2$TLOC[ENIF18_df2$TLOC==3]<-2
 ENIF18_df2$TLOC[ENIF18_df2$TLOC==4]<-2
+
 
 MEX_Inhabitants<-sum(ENIF18_df1$FAC_PER)
 MEX_Inhabitants_d<-ENIF18_df1 %>% select('SEXO', 'TLOC', 'FAC_PER') %>%
@@ -196,7 +221,7 @@ MEX_indicators$TLOC[MEX_indicators$TLOC=='2']<-'<= 14,999'
 
 names(MEX_indicators)<-c('Gender', 'Community Size', 'Financial Service', 'Indicator')
 
-p3<-MEX_indicators %>% ggplot(aes(y=Indicator,x=`Community Size`,fill=`Gender`))+
+MEX_indicators %>% ggplot(aes(y=Indicator,x=`Community Size`,fill=`Gender`))+
   facet_wrap(~`Financial Service`,scales = 'free')+
   scale_y_continuous(expand = c(0,0),limits = c(0,70))+
   geom_bar(stat='Identity',position=position_dodge())+
@@ -210,11 +235,11 @@ p3<-MEX_indicators %>% ggplot(aes(y=Indicator,x=`Community Size`,fill=`Gender`))
         plot.subtitle =element_text(color = "grey20", size = 15, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
+```
 
-ggsave(here("output","plot3.pdf"), p3,width = 35, height = 25, units = "cm")
+## Graph 4
 
-
-# Graph 4
+```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE, warning=FALSE}
 #Regroup the variables:
 ENIF18_df1$P5_7_2[ENIF18_df1$P5_7==5|ENIF18_df1$P5_7==6]<-'1'
 ENIF18_df1$P5_7_2[ENIF18_df1$P5_7==2]<-'2'
@@ -306,7 +331,7 @@ MEX_indicators<-MEX_indicators %>%
   
 
 
-p4<-MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))+
+MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))+
   facet_wrap(~`Financial Service`)+
   geom_treemap()+
   geom_treemap_subgroup_border(color='grey100')+
@@ -323,7 +348,6 @@ p4<-MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reaso
         plot.subtitle =element_text(color = "grey20", size = 15, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
-ggsave(here("output","plot4.pdf"), p4,width = 35, height = 25, units = "cm")
+```
 
-
-
+## Graph 5
