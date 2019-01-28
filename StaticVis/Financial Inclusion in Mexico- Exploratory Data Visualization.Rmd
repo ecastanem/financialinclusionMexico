@@ -5,6 +5,11 @@ date: "January 27, 2019"
 output: html_document
 ---
 
+<style>
+body {
+text-align: justify}
+</style>
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(here)
@@ -14,19 +19,20 @@ library(dbplyr)
 library(dplyr)
 library(directlabels)
 library(ggridges)
+library(gridExtra)
+library(grid)
 library(treemapify)
 library(viridis)
 library(haven)
 
 ```
 
-## Introduction
+At a worldwide level, economies have become conscious about the relevance of financial inclusion as an enabler of development. This awareness has been recognized by several international organizations like the OECD and the UN, who consider financial inclusion national strategies a key factor to eradicate poverty, end hunger, gender equality and economic empowerment of women, promote economic growth and jobs, promote industry innovation and infrastructure, among others.
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+### The world's financial inclusion trend.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Since 2011, the level of financial inclusion has increased. As can be seen in the following graph, the distribution of the account ownership indicator across 126 economies has shifted from the lower to the upper range. Moreover, the distribution as of 2017 shows a multimodal behavior which is basically due to the type of countries included in the sample: developed and developing. 
 
-## Graph 1
 
 ```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE}
 #Read the World Bank Global Findex data and the GDP per capita from the World Development Indicators data: 
@@ -85,7 +91,9 @@ WB_account %>% ggplot(aes(y=year,x=account.t.d/100,fill=..x..))+
 
 ```
 
-## Graph 2
+### Mexico's financial inclusion trend.
+
+Mexico is one of the developing countries that is struggling with the financial inclusion issue. According to the World Bank Group, the account ownership indicator in the country increased from 2011 to 2014, just like the rest of the world's regions, but did not follow the world's tendency from 2014 to 2017. This behavior is particularly interesting because even the low income regions had shown an increases in financial inclusion.
 
 ```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE}
 
@@ -140,7 +148,11 @@ WB_account %>% ggplot(aes(x=year,y=account.t.d/100, group=`Region Name`))+
 
 ```
 
-## Graph 3
+### What's the status of financial service adoption in Mexico?
+
+As of June 2018, the financial service with the highest adoption rate is the deposit account, whereas the insurance is the one with the lowest adoption rate. Moreover, there is a gender gap in the country, which is particularly higher in the retirement account services, but this is not as critical as the one related to the community size. To properly attend the financial inclusion issue is important to understand why the population is not acquiring the services.
+
+
 
 ```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE}
 ENIF18_df1<-read_excel(path=here('Data','tmodulo.xlsx'),sheet = 'tmodulo'
@@ -237,7 +249,7 @@ MEX_indicators %>% ggplot(aes(y=Indicator,x=`Community Size`,fill=`Gender`))+
 
 ```
 
-## Graph 4
+According to the 2018 National Survey of Financial Inclusion, based on a 14,500 household sample all over the country, the main reasons for not acquiring a financial service can be grouped in 5 categories: Lack of interest, Unattractive offer, Distrust in the financial institutions, Non affordability, Ignorance regarding the financial service. The first four categories are directly related with the quality and cost of the service offer, whereas the last one is related to the financial education.
 
 ```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE, warning=FALSE}
 #Regroup the variables:
@@ -350,4 +362,81 @@ MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))
 
 ```
 
-## Graph 5
+### What's the trend of the banking industry based on the regulator's information?
+
+Although the World Bank Group data indicate that the financial inclusion in Mexico is trapped, the amount of deposits and credit lines in the country had increased in the last years, whereas the credit portfolio quality had decreased. This indicates that the banks are collecting more money and installing more credits with better quality. It would be interesting to see what is the customer profile in Mexico and his geographical distribution.
+
+```{r, echo=FALSE, fig.height=8, fig.width=14, message=FALSE, warning=FALSE}
+#Read the captation and credit data from the CNBV:
+CNBV_df1<-read_excel(path=here('Data','SH_BM_1118_1.xlsx'),sheet = 'Table_1'
+                       ,range=cell_rows(1:217)
+                       ,col_names = TRUE
+                       ,col_types=c(rep("date",1), rep("numeric", 4)))
+
+CNBV_df1$Year<-format(CNBV_df1$Date,"%Y")
+
+CNBV_Average<-CNBV_df1 %>% 
+  select('Year', 'Deposits','Credits','IMOR','USD') %>%
+  group_by(.dots=c('Year')) %>%
+  summarise_all(funs(mean))
+
+CNBV_Average$`Deposits (USD)`<-CNBV_Average$Deposits/CNBV_Average$USD
+CNBV_Average$`Credits (USD)`<-CNBV_Average$Credits/CNBV_Average$USD
+
+CNBV_Average_Balance<-CNBV_Average %>% 
+  select('Year', 'Deposits (USD)','Credits (USD)') %>%
+  group_by(Year) %>%
+  gather(`Deposits (USD)`:`Credits (USD)`, key='Variable', value='Amount')
+
+CNBV_Average_Balance<-CNBV_Average_Balance %>% 
+  group_by(Variable) %>%
+  dplyr::mutate(last = dplyr::last(Amount))
+
+CNBV_Average_Balance$Variable[CNBV_Average_Balance$Variable=='Credits (USD)']<-'Credits'
+CNBV_Average_Balance$Variable[CNBV_Average_Balance$Variable=='Deposits (USD)']<-'Deposits'
+
+CNBV_Average_Indicators<-CNBV_Average %>% 
+  select('Year', 'IMOR') %>%
+  group_by(Year) %>%
+  gather(IMOR, key='Variable', value='Indicator') %>%
+  arrange(Variable, .by_group = TRUE)
+
+CNBV_Average_Indicators<-CNBV_Average_Indicators %>% 
+  group_by(Variable) %>%
+  dplyr::mutate(last = dplyr::last(Indicator))
+
+CNBV_Average_Indicators$Variable[CNBV_Average_Indicators$Variable=='IMOR']<-'Credit Default Rate'
+
+p5<-CNBV_Average_Balance %>% ggplot(aes(x = Year, y = Amount/1000,group=Variable)) + 
+  geom_line(aes(color = Variable), alpha = 1, size=2)+
+  geom_dl(aes(label = round(last/1000,0)), method=list(dl.trans(y=y+0.2,x = x-0.25), "last.points", cex = 0.8))+
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800"))+
+  theme_minimal()+
+  theme(legend.position="bottom")+
+  labs(subtitle = "Assets and Liabilities Balance.",y="Billions of US dollars")+
+  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
+        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+p6<-CNBV_Average_Indicators %>% ggplot(aes(x = Year, y = Indicator,group=Variable, color=Variable)) + 
+  geom_line(alpha = 1, size=1.2)+
+  geom_dl(aes(label = round(last,1)), method=list(dl.trans(y=y+0.3, x = x-0.25 ), "last.points", cex = 0.8))+
+  theme(legend.position="bottom")+
+  labs(subtitle = "Credit risk of the overall portfolio.", caption="CNBV: Balance sheet historical series.",y="Percentage (%)", caption="  ")+
+  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
+        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+grid.arrange(p5, p6,ncol = 2, nrow = 1, top=textGrob("The financial inclusion in the country is stuck but the worth of the banking industry is growing.",gp=gpar(fontsize=20,fontface='bold'),x=0,hjust = 0))
+
+  
+
+```
+

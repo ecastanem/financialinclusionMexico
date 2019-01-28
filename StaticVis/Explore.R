@@ -6,6 +6,8 @@ library(dplyr)
 library(directlabels)
 library(ggridges)
 library(treemapify)
+library(gridExtra)
+library(grid)
 library(viridis)
 library(haven)
 
@@ -325,5 +327,76 @@ p4<-MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reaso
 
 ggsave(here("output","plot4.pdf"), p4,width = 35, height = 25, units = "cm")
 
+# Graph 5
 
+#Read the captation and credit data from the CNBV:
+CNBV_df1<-read_excel(path=here('Data','SH_BM_1118_1.xlsx'),sheet = 'Table_1'
+                       ,range=cell_rows(1:217)
+                       ,col_names = TRUE
+                       ,col_types=c(rep("date",1), rep("numeric", 4)))
 
+CNBV_df1$Year<-format(CNBV_df1$Date,"%Y")
+
+CNBV_Average<-CNBV_df1 %>% 
+  select('Year', 'Deposits','Credits','IMOR','USD') %>%
+  group_by(.dots=c('Year')) %>%
+  summarise_all(funs(mean))
+
+CNBV_Average$`Deposits (USD)`<-CNBV_Average$Deposits/CNBV_Average$USD
+CNBV_Average$`Credits (USD)`<-CNBV_Average$Credits/CNBV_Average$USD
+
+CNBV_Average_Balance<-CNBV_Average %>% 
+  select('Year', 'Deposits (USD)','Credits (USD)') %>%
+  group_by(Year) %>%
+  gather(`Deposits (USD)`:`Credits (USD)`, key='Variable', value='Amount')
+
+CNBV_Average_Balance<-CNBV_Average_Balance %>% 
+  group_by(Variable) %>%
+  dplyr::mutate(last = dplyr::last(Amount))
+
+CNBV_Average_Balance$Variable[CNBV_Average_Balance$Variable=='Credits (USD)']<-'Credits'
+CNBV_Average_Balance$Variable[CNBV_Average_Balance$Variable=='Deposits (USD)']<-'Deposits'
+
+CNBV_Average_Indicators<-CNBV_Average %>% 
+  select('Year', 'IMOR') %>%
+  group_by(Year) %>%
+  gather(IMOR, key='Variable', value='Indicator') %>%
+  arrange(Variable, .by_group = TRUE)
+
+CNBV_Average_Indicators<-CNBV_Average_Indicators %>% 
+  group_by(Variable) %>%
+  dplyr::mutate(last = dplyr::last(Indicator))
+
+CNBV_Average_Indicators$Variable[CNBV_Average_Indicators$Variable=='IMOR']<-'Credit Default Rate'
+
+p5<-CNBV_Average_Balance %>% ggplot(aes(x = Year, y = Amount/1000,group=Variable)) + 
+  geom_line(aes(color = Variable), alpha = 1, size=2)+
+  geom_dl(aes(label = round(last/1000,0)), method=list(dl.trans(y=y+0.2,x = x-0.25), "last.points", cex = 0.8))+
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800"))+
+  theme_minimal()+
+  theme(legend.position="bottom")+
+  labs(subtitle = "Assets and Liabilities Balance.", caption="   ",y="Billions of US dollars")+
+  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
+        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+p6<-CNBV_Average_Indicators %>% ggplot(aes(x = Year, y = Indicator,group=Variable, color=Variable)) + 
+  geom_line(alpha = 1, size=1.2)+
+  geom_dl(aes(label = round(last,1)), method=list(dl.trans(y=y+0.3, x = x-0.25 ), "last.points", cex = 0.8))+
+  theme(legend.position="bottom")+
+  labs(subtitle = "Credit risk of the overall portfolio.", caption="CNBV: Balance sheet historical series.",y="Percentage (%)")+
+  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
+        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+p7<-grid.arrange(p5, p6,ncol = 2, nrow = 1, top=textGrob("The financial inclusion in the country is stuck but the worth of the banking industry is growing.",gp=gpar(fontsize=20,fontface="bold"),x=0,hjust = 0))
+
+  
+ggsave(here("output","plot5.pdf"), p7,width = 35, height = 15, units = "cm")
