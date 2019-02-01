@@ -154,7 +154,7 @@ As of June 2018, the financial service with the highest adoption rate is the dep
 
 
 
-```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE}
+```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE, warning=FALSE}
 ENIF18_df1<-read_excel(path=here('Data','tmodulo.xlsx'),sheet = 'tmodulo'
                        ,range=cell_rows(1:12447)
                        ,col_names = TRUE
@@ -211,7 +211,18 @@ MEX_indicators<-MEX_Inhabitants_d %>%
   inner_join(MEX_credits, by=c('SEXO','TLOC')) %>%
   inner_join(MEX_insurance, by=c('SEXO','TLOC')) %>%
   inner_join(MEX_retirement, by=c('SEXO','TLOC'))
+
+MEX_indicators_SEXO<-MEX_indicators %>%
+  select(-'TLOC') %>%
+  group_by(.dots=c('SEXO')) %>%
+  summarise_all(funs(sum))
   
+MEX_indicators_TLOC<-MEX_indicators %>%
+  group_by(.dots=c('TLOC')) %>%
+  select(-'SEXO') %>%
+  group_by(.dots=c('TLOC')) %>%
+  summarise_all(funs(sum))
+
 
 MEX_indicators<-MEX_indicators %>% 
   mutate(accounts_p=100*account/Inhabitants) %>%
@@ -220,32 +231,76 @@ MEX_indicators<-MEX_indicators %>%
   mutate(retirement_p=100*retirement/Inhabitants) %>%
   select('SEXO', 'TLOC', 'accounts_p','credits_p','insurance_p','retirement_p')
 
+MEX_indicators_SEXO<-MEX_indicators_SEXO %>% 
+  mutate(accounts_p=100*account/Inhabitants) %>%
+  mutate(credits_p=100*credits/Inhabitants) %>%
+  mutate(insurance_p=100*insurance/Inhabitants) %>%
+  mutate(retirement_p=100*retirement/Inhabitants) %>%
+  select('SEXO', 'accounts_p','credits_p','insurance_p','retirement_p')
+
+MEX_indicators_TLOC<-MEX_indicators_TLOC %>% 
+  mutate(accounts_p=100*account/Inhabitants) %>%
+  mutate(credits_p=100*credits/Inhabitants) %>%
+  mutate(insurance_p=100*insurance/Inhabitants) %>%
+  mutate(retirement_p=100*retirement/Inhabitants) %>%
+  select('TLOC', 'accounts_p','credits_p','insurance_p','retirement_p')
+
 names(MEX_indicators)<-c('SEXO', 'TLOC', 'Deposit account','Credit','Insurance','Retirement account')
+
+names(MEX_indicators_SEXO)<-c('SEXO', 'Deposit account','Credit','Insurance','Retirement account')
+
+names(MEX_indicators_TLOC)<-c('TLOC', 'Deposit account','Credit','Insurance','Retirement account')
 
 MEX_indicators<-MEX_indicators %>% 
   group_by(.dots=c('SEXO', 'TLOC')) %>%
   gather(`Deposit account`:`Retirement account`, key='Financial Service', value='Indicator')
+
+MEX_indicators_SEXO<-MEX_indicators_SEXO %>% 
+  group_by(.dots=c('SEXO')) %>%
+  gather(`Deposit account`:`Retirement account`, key='Financial Service', value='Indicator')
+
+MEX_indicators_TLOC<-MEX_indicators_TLOC %>% 
+  group_by(.dots=c('TLOC')) %>%
+  gather(`Deposit account`:`Retirement account`, key='Financial Service', value='Indicator')
+
 
 MEX_indicators$SEXO[MEX_indicators$SEXO=='1']<-'Male'
 MEX_indicators$SEXO[MEX_indicators$SEXO=='2']<-'Female'
 MEX_indicators$TLOC[MEX_indicators$TLOC=='1']<-'> 15,000'
 MEX_indicators$TLOC[MEX_indicators$TLOC=='2']<-'<= 14,999'
 
+MEX_indicators_SEXO$SEXO[MEX_indicators_SEXO$SEXO=='1']<-'Male'
+MEX_indicators_SEXO$SEXO[MEX_indicators_SEXO$SEXO=='2']<-'Female'
+MEX_indicators_TLOC$TLOC[MEX_indicators_TLOC$TLOC=='1']<-'> 15,000 inhabitants'
+MEX_indicators_TLOC$TLOC[MEX_indicators_TLOC$TLOC=='2']<-'<= 14,999 inhabitants'
+
 names(MEX_indicators)<-c('Gender', 'Community Size', 'Financial Service', 'Indicator')
 
-MEX_indicators %>% ggplot(aes(y=Indicator,x=`Community Size`,fill=`Gender`))+
-  facet_wrap(~`Financial Service`,scales = 'free')+
+names(MEX_indicators_SEXO)<-c('Group', 'Financial Service', 'Indicator')
+names(MEX_indicators_TLOC)<-c('Group', 'Financial Service', 'Indicator')
+
+MEX_indicators_2<-merge(MEX_indicators_SEXO,MEX_indicators_TLOC, all=TRUE)
+MEX_indicators_2$`Gap`<-"Community Size"
+MEX_indicators_2$`Gap`[MEX_indicators_2$Group=='Male'|MEX_indicators_2$Group=='Female']<-"Gender"
+
+
+MEX_indicators_2 %>% ggplot(aes(y=Indicator,x=`Financial Service`,fill=Group))+
+  facet_wrap(Gap~.,scales = 'free')+
   scale_y_continuous(expand = c(0,0),limits = c(0,70))+
   geom_bar(stat='Identity',position=position_dodge())+
-  scale_x_discrete(limits=c('<= 14,999', '> 15,000'))+
+#  scale_x_discrete(limits=c('<= 14,999', '> 15,000'))+
   geom_text(aes(label=round(Indicator,digits=2)),position=position_dodge(0.9), vjust=-1)+
-  labs(subtitle = "The critical gaps for the financial services adoption in the country depend more on the community size than in the gender.",title="In Mexico the gender is not the only gap for financial services adoption.", caption="INEGI: National Survery of Financial Inclusion 2018.",x="Community size by number of inhabitants",y="Percentage of population (between 18 and 70 years) with a financial service account")+
+  theme(legend.position="bottom")+
+  labs(subtitle = "The critical gaps for the financial services adoption in the country depend more on the community size than in the gender.",title="In Mexico the gender is not the only gap for financial services adoption.", caption="INEGI: National Survery of Financial Inclusion 2018.",x="Financial service",y="Percentage of population (between 18 and 70 years) with a financial service account")+
   theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
         axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
         axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
         axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
         plot.subtitle =element_text(color = "grey20", size = 15, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+
+
 
 ```
 
@@ -315,10 +370,10 @@ MEX_indicators<-MEX_accounts %>%
   left_join(MEX_retirement, by=c('Reasons'))
 
 MEX_indicators$Reasons[MEX_indicators$Reasons=='1']<-'Lack of interest'
-MEX_indicators$Reasons[MEX_indicators$Reasons=='2']<-'Unattractive offer (interest rates, prices, etc.)'
-MEX_indicators$Reasons[MEX_indicators$Reasons=='3']<-'Ignorance regarding the financial service'
+MEX_indicators$Reasons[MEX_indicators$Reasons=='2']<-'Unattractive offer'
+MEX_indicators$Reasons[MEX_indicators$Reasons=='3']<-'Ignorance'
 MEX_indicators$Reasons[MEX_indicators$Reasons=='4']<-'Non affordable'
-MEX_indicators$Reasons[MEX_indicators$Reasons=='5']<-'Distrust in the financial institutions'
+MEX_indicators$Reasons[MEX_indicators$Reasons=='5']<-'Institutional Distrust'
 MEX_indicators$Reasons[MEX_indicators$Reasons=='6']<-'Others'
 
 MEX_indicators2<-MEX_indicators
@@ -347,8 +402,8 @@ MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))
   facet_wrap(~`Financial Service`)+
   geom_treemap()+
   geom_treemap_subgroup_border(color='grey100')+
-  geom_treemap_text(aes(label=Percentage), color="black")+
-  scale_x_continuous(expand = c(0, 0)) +
+  geom_treemap_text(aes(label=paste(Percentage,"%")), color="black")+
+  scale_x_continuous(expand = c(0, 0), position='top') +
   scale_y_continuous(expand = c(0, 0)) +
   scale_fill_brewer(palette = "Set1")+
   theme(legend.position="bottom")+
@@ -364,7 +419,7 @@ MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))
 
 ### What's the trend of the banking industry based on the regulator's information?
 
-Although the World Bank Group data indicate that the financial inclusion in Mexico is trapped, the amount of deposits and credit lines in the country had increased in the last years, whereas the credit portfolio quality had decreased. This indicates that the banks are collecting more money and installing more credits with better quality. It would be interesting to see what is the customer profile in Mexico and his geographical distribution.
+Although the World Bank Group data indicate that the financial inclusion in Mexico is trapped, the amount of deposits and credit lines in the country had increased in the last years, whereas the credit portfolio quality had decreased. This indicates that the banks are collecting more money and installing more credit lines with better quality.
 
 ```{r, echo=FALSE, fig.height=8, fig.width=14, message=FALSE, warning=FALSE}
 #Read the captation and credit data from the CNBV:
@@ -415,7 +470,7 @@ p5<-CNBV_Average_Balance %>% ggplot(aes(x = Year, y = Amount/1000,group=Variable
   theme_minimal()+
   theme(legend.position="bottom")+
   labs(subtitle = "Assets and Liabilities Balance.",y="Billions of US dollars")+
-  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
+  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 45, hjust = .5, vjust = .5, face = "plain"),
         axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
         axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
         axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
@@ -427,14 +482,14 @@ p6<-CNBV_Average_Indicators %>% ggplot(aes(x = Year, y = Indicator,group=Variabl
   geom_dl(aes(label = round(last,1)), method=list(dl.trans(y=y+0.3, x = x-0.25 ), "last.points", cex = 0.8))+
   theme(legend.position="bottom")+
   labs(subtitle = "Credit risk of the overall portfolio.", caption="CNBV: Balance sheet historical series.",y="Percentage (%)", caption="  ")+
-  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
+  theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 45, hjust = .5, vjust = .5, face = "plain"),
         axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
-        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = 1, vjust = 0, face = "plain"),
         axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
         plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
-grid.arrange(p5, p6,ncol = 2, nrow = 1, top=textGrob("The financial inclusion in the country is stuck but the worth of the banking industry is growing.",gp=gpar(fontsize=20,fontface='bold'),x=0,hjust = 0))
+grid.arrange(p5, p6,ncol = 2, nrow = 1, top=textGrob("The banking industry is growing and the credit risk is improving.",gp=gpar(fontsize=20,fontface='bold'),x=0,hjust = 0))
 
   
 
