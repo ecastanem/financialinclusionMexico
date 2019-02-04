@@ -24,6 +24,51 @@ library(grid)
 library(treemapify)
 library(viridis)
 library(haven)
+library(rgdal)
+
+#Create Scale of colors:
+ecm_colors <- c(`blue`="#719bff", `pink`="#ff6969", `orange`="#ff9f15", `yellow`="#f5f856",`grey`="#aaaaaa")
+
+#Function to get the colors:
+ecm_cols <- function(...) {
+  cols <- c(...)
+  if (is.null(cols))
+    return (ecm_colors)
+  ecm_colors[cols]
+}
+
+#Create colors lists:
+ecm_palettes <- list(`main`=ecm_cols("blue", "pink", "orange","yellow","grey"),
+  `cool`=ecm_cols("blue", "pink"),
+  `hot` = ecm_cols("yellow", "orange"),
+  `mix`=ecm_cols("blue","pink","orange","grey"))
+
+ecm_pal <- function(palette = "main", reverse = FALSE, ...) {
+  pal <- ecm_palettes[[palette]]
+  if (reverse) pal <- rev(pal)
+  colorRampPalette(pal, ...)
+}
+
+scale_color_ecm <- function(palette = "main", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- ecm_pal(palette = palette, reverse = reverse)
+  
+  if (discrete) {
+    discrete_scale("colour", paste0("ecm_", palette), palette = pal, ...)
+  } else {
+    scale_color_gradientn(colours = pal(256), ...)
+  }
+}
+
+scale_fill_ecm <- function(palette = "main", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- ecm_pal(palette = palette, reverse = reverse)
+  
+  if (discrete) {
+    discrete_scale("fill", paste0("ecm_", palette), palette = pal, ...)
+  } else {
+    scale_fill_gradientn(colours = pal(256), ...)
+  }
+}
+
 
 ```
 
@@ -78,7 +123,7 @@ WB_account$MEX[WB_account$`Country Code`=='MEX']<-1
 #Make a graph to understand the evolution of the distribution for the accounts indicator. 
 WB_account %>% ggplot(aes(y=year,x=account.t.d/100,fill=..x..))+
   geom_density_ridges_gradient(scale =1.25, alpha = 0.9)+
-  scale_fill_viridis(name = "Accounts", option = "C")+
+  scale_fill_ecm(palette = "mix", discrete = FALSE)+
   labs(title = "Evolution of the distribution of account ownership indicator in 126 countries.",subtitle="Every year the account ownership at a financial institution or with a mobile-money-service provider in the world is increasing.", caption="World Bank Group: Global Findex database",y="Year",x="Average number of accounts per inhabitant")+
   theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
         axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
@@ -129,7 +174,8 @@ WB_account<-WB_account %>%
   group_by(`Region Code`)
 
 
-region_colors<-c("High income" = "blue4","Middle income" = "blue3","Low income" = "blue2","World" = "grey50", "Mexico" = "green4")
+region_colors<-c("High income" = ecm_pal('hot')(3)[1],"Middle income" = ecm_pal('hot')(3)[2],"Low income" = ecm_pal('hot')(3)[3],"World" = ecm_colors[5], "Mexico" = ecm_colors[1])
+names(region_colors)<-c("High income","Middle income","Low income","World","Mexico")
 
 #Make a graph to compare Mexico with groups of countries by income. 
 WB_account %>% ggplot(aes(x=year,y=account.t.d/100, group=`Region Name`))+
@@ -144,6 +190,8 @@ WB_account %>% ggplot(aes(x=year,y=account.t.d/100, group=`Region Name`))+
         axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
         plot.subtitle =element_text(color = "grey20", size = 15, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 20, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+
 
 
 ```
@@ -288,7 +336,7 @@ MEX_indicators_2 %>% ggplot(aes(y=Indicator,x=`Financial Service`,fill=Group))+
   facet_wrap(Gap~.,scales = 'free')+
   scale_y_continuous(expand = c(0,0),limits = c(0,70))+
   geom_bar(stat='Identity',position=position_dodge())+
-#  scale_x_discrete(limits=c('<= 14,999', '> 15,000'))+
+  scale_fill_ecm(palette = 'mix',reverse = TRUE)+
   geom_text(aes(label=round(Indicator,digits=2)),position=position_dodge(0.9), vjust=-1)+
   theme(legend.position="bottom")+
   labs(subtitle = "The critical gaps for the financial services adoption in the country depend more on the community size than in the gender.",title="In Mexico the gender is not the only gap for financial services adoption.", caption="INEGI: National Survery of Financial Inclusion 2018.",x="Financial service",y="Percentage of population (between 18 and 70 years) with a financial service account")+
@@ -405,7 +453,7 @@ MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))
   geom_treemap_text(aes(label=paste(Percentage,"%")), color="black")+
   scale_x_continuous(expand = c(0, 0), position='top') +
   scale_y_continuous(expand = c(0, 0)) +
-  scale_fill_brewer(palette = "Set1")+
+  scale_fill_ecm(palette = 'mix')+
   theme(legend.position="bottom")+
   labs(subtitle = "Main reasons for not acquire a financial service.",title="Affordability and Lack of Interest are the main reasons for not acquiring a financial service.", caption="INEGI: National Survery of Financial Inclusion 2018.",x="Percentage of respondents without the financial service.")+
   theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
@@ -419,7 +467,7 @@ MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))
 
 ### What's the trend of the banking industry based on the regulator's information?
 
-Although the World Bank Group data indicate that the financial inclusion in Mexico is trapped, the amount of deposits and credit lines in the country had increased in the last years, whereas the credit portfolio quality had decreased. This indicates that the banks are collecting more money and installing more credit lines with better quality.
+Although the World Bank Group data indicate that the financial inclusion in Mexico is trapped, the amount of deposits and credit lines in the country had increased in the last years, whereas the credit portfolio quality had decreased. This indicates that the banks are collecting more money and installing more credit lines with better quality. In other words, the financial inclusion level in Mexico is not growing, but the amount of deposits and credits are.   
 
 ```{r, echo=FALSE, fig.height=8, fig.width=14, message=FALSE, warning=FALSE}
 #Read the captation and credit data from the CNBV:
@@ -465,8 +513,8 @@ CNBV_Average_Indicators$Variable[CNBV_Average_Indicators$Variable=='IMOR']<-'Cre
 p5<-CNBV_Average_Balance %>% ggplot(aes(x = Year, y = Amount/1000,group=Variable)) + 
   geom_line(aes(color = Variable), alpha = 1, size=2)+
   geom_dl(aes(label = round(last/1000,0)), method=list(dl.trans(y=y+0.2,x = x-0.25), "last.points", cex = 0.8))+
-  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
-  scale_fill_manual(values = c("#00AFBB", "#E7B800"))+
+  scale_color_manual(values = c("#719bff", "#f5f856")) +
+  scale_fill_manual(values = c("#719bff", "#f5f856"))+
   theme_minimal()+
   theme(legend.position="bottom")+
   labs(subtitle = "Assets and Liabilities Balance.",y="Billions of US dollars")+
@@ -480,11 +528,13 @@ p5<-CNBV_Average_Balance %>% ggplot(aes(x = Year, y = Amount/1000,group=Variable
 p6<-CNBV_Average_Indicators %>% ggplot(aes(x = Year, y = Indicator,group=Variable, color=Variable)) + 
   geom_line(alpha = 1, size=1.2)+
   geom_dl(aes(label = round(last,1)), method=list(dl.trans(y=y+0.3, x = x-0.25 ), "last.points", cex = 0.8))+
+  scale_color_manual(values = c("#ff6969")) +
+  scale_fill_manual(values = c("#ff6969"))+
   theme(legend.position="bottom")+
   labs(subtitle = "Credit risk of the overall portfolio.", caption="CNBV: Balance sheet historical series.",y="Percentage (%)", caption="  ")+
   theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 45, hjust = .5, vjust = .5, face = "plain"),
         axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
-        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = 1, vjust = 0, face = "plain"),
+        axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
         axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
         plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
@@ -492,6 +542,139 @@ p6<-CNBV_Average_Indicators %>% ggplot(aes(x = Year, y = Indicator,group=Variabl
 grid.arrange(p5, p6,ncol = 2, nrow = 1, top=textGrob("The banking industry is growing and the credit risk is improving.",gp=gpar(fontsize=20,fontface='bold'),x=0,hjust = 0))
 
   
+
+```
+
+Moreover, 60% of the deposits are hold by four banks, whereas the remaining 40% is hold by more than 40, which indicates that the industry follows an oligopoly structure. Besides, these four banks hold only 35% of the branches in the country, which might be because of the geographical distribution of the customers. 
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE,fig.height=8, fig.width=14}
+#Branches vs Deposits:
+CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Sucursales'
+                       ,range=cell_rows(1:618)
+                       ,col_names = TRUE
+                       ,col_types=c(rep("text",4), rep("numeric", 1)))
+
+CNBV_df3<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Captacion'
+                     ,range=cell_rows(1:51)
+                     ,col_names = TRUE
+                     ,col_types=c(rep("text",1), rep("numeric", 1)))
+
+#Deposits and branchs table 
+top_banks<-c("BBVA Bancomer",	"Banorte",	"Banamex",	"Santander",	"HSBC",	"Scotiabank",	"Inbursa",	"Banco del Bajío",	"Banco Azteca",	"Banregio"
+)
+Deps_bank<-CNBV_df3
+Deps_bank$Group<-Deps_bank$Bank
+Deps_bank$Group[!(Deps_bank$Bank %in% top_banks)]<-'Others'
+
+Branchs_bank<-CNBV_df2
+Branchs_bank$Group<-Branchs_bank$nombre_publicacion
+Branchs_bank$Group[!(Branchs_bank$nombre_publicacion %in% top_banks)]<-'Others'
+
+Total_deposits<-sum(Deps_bank$Deposits)
+
+MEX_Deps_Bank<-Deps_bank %>% 
+  select('Group', 'Deposits') %>%
+  group_by(.dots=c('Group')) %>%
+  summarise(`Deposits`=sum(Deposits)) %>%
+  mutate(Deposits_p=round(100*Deposits/Total_deposits,0)) %>%
+  arrange(desc(Deposits)) %>%
+  group_by()
+
+MEX_Deps_Bank_2<-MEX_Deps_Bank %>%
+  select('Group','Deposits_p')%>%
+  gather(Deposits_p, value, -Group) %>%
+  spread(Group,value) %>%
+  select(-c('Deposits_p')) %>%
+  select(c(top_banks,'Others'))
+
+Total_branches<-sum(Branchs_bank$Num_Sucursales)
+
+MEX_Branchs_Bank<-Branchs_bank %>%
+  select('Group', 'Num_Sucursales') %>%
+  group_by(.dots=c('Group')) %>%
+  summarise(`Branches`=sum(Num_Sucursales)) %>%
+  mutate(Branches_p=round(round(100*Branches/Total_branches,1),0)) %>%
+  arrange(desc(Branches)) %>%
+  group_by()
+
+MEX_Branchs_Bank_2<-MEX_Branchs_Bank %>%
+  select('Group','Branches_p')%>%
+  gather(Branches_p, value, -Group) %>%
+  spread(Group,value) %>%
+  select(-c('Branches_p')) %>%
+  select(c(top_banks,'Others'))
+
+nrows <- 10
+aux <- expand.grid(y = 1:nrows, x = 1:nrows)
+aux$Bank<- factor(rep(names(MEX_Deps_Bank_2), MEX_Deps_Bank_2))
+aux$Indicator<-'Received Deposits ($)'
+aux2<- expand.grid(y = 1:nrows, x = 1:nrows)
+aux2$Bank<- factor(rep(names(MEX_Branchs_Bank_2), MEX_Branchs_Bank_2))
+aux2$Indicator<-'Number of Branches'
+
+aux<-rbind(aux,aux2)
+
+aux %>% ggplot(aes(x = x, y = y, fill = Bank)) +
+  facet_wrap(~Indicator)+
+  geom_tile(color = "black", size = 0.5)+
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0), trans = 'reverse') +
+  scale_fill_discrete(breaks=c(top_banks,'Others'))+
+  scale_fill_ecm(palette = 'main',discrete = TRUE)+
+  labs(title="Three banks holds almost 50% of the deposits.", subtitle="BBVA and Banco Azteca have the same number of branches but BBVA holds 22% of the deposits.", caption="CNBV: Balance sheet historical series.")+
+  theme_minimal()+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+
+```
+
+There's a high concentration of the branches at State level, the same five banks hold at least 50% of the branches in each state.These indicates that the trap on the growing of the financial inclusion in the country might be associated to an oligopoly issue. It would be interesting to compare the number of branches with the percentage of accounts and deposits by state to validate this hypothesis. 
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.height=8, fig.width=14}
+CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Sucursales'
+                     ,range=cell_rows(1:618)
+                     ,col_names = TRUE
+                     ,col_types=c(rep("text",4), rep("numeric", 1)))
+
+top_banks<-c("BBVA Bancomer",	"Banorte",	"Banamex","Banco Azteca","Santander")
+
+Branchs_bank<-CNBV_df2
+Branchs_bank$Group<-Branchs_bank$nombre_publicacion
+Branchs_bank$Group[!(Branchs_bank$nombre_publicacion %in% top_banks)]<-'Others'
+
+
+MEX_Branchs_State<-Branchs_bank %>%
+  select('Group','dl_estado_short', 'Num_Sucursales') %>%
+  group_by(.dots=c('Group','dl_estado_short')) %>%
+  summarise(`Branches`=sum(Num_Sucursales)) %>%
+  gather(`Branches`, key='Variable', value='Branches')
+
+MEX_Branchs_State_2<-Branchs_bank %>%
+  select('dl_estado_short','Num_Sucursales') %>%
+  group_by(.dots=c('dl_estado_short')) %>%
+  summarise(`Branches`=sum(Num_Sucursales)) %>%
+  gather(`Branches`, key='Variable', value='Branches_Estado')
+
+MEX_Branchs_State<- MEX_Branchs_State %>%
+  left_join(MEX_Branchs_State_2, by=c('dl_estado_short'))
+
+MEX_Branchs_State$`Branches Share`<-round(100*MEX_Branchs_State$Branches/MEX_Branchs_State$Branches_Estado,0)
+
+MEX_Branchs_State %>% ggplot( aes(x = "", y=`Branches Share`,fill = Group)) +
+  facet_wrap(dl_estado_short~.,ncol=8,nrow=4)+
+  geom_bar(width = 1,stat='identity')+
+  scale_fill_discrete(breaks=c(top_banks,'Others'))+
+  scale_fill_ecm(palette = 'main',discrete = TRUE)+
+  theme(axis.line = element_blank(), plot.title = element_text(hjust=0.5)) + 
+  labs(x=NULL, y=NULL,title="Pie Chart of class", caption="Source: mpg")+
+  coord_polar(theta = "y", start=0)+
+  labs(title="There's a high concentration in every state", subtitle="The same five banks concentrate at least 50% of the branches in all the states.", caption="CNBV: Balance sheet historical series.")+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+
 
 ```
 

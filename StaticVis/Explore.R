@@ -10,6 +10,50 @@ library(gridExtra)
 library(grid)
 library(viridis)
 library(haven)
+library(rgdal)
+
+#Create Scale of colors:
+ecm_colors <- c(`blue`="#719bff", `pink`="#ff6969", `orange`="#ff9f15", `yellow`="#f5f856",`grey`="#aaaaaa")
+
+#Function to get the colors:
+ecm_cols <- function(...) {
+  cols <- c(...)
+  if (is.null(cols))
+    return (ecm_colors)
+  ecm_colors[cols]
+}
+
+#Create colors lists:
+ecm_palettes <- list(`main`=ecm_cols("blue", "pink", "orange","yellow","grey"),
+  `cool`=ecm_cols("blue", "pink"),
+  `hot` = ecm_cols("yellow", "orange"),
+  `mix`=ecm_cols("blue","pink","orange","grey"))
+
+ecm_pal <- function(palette = "main", reverse = FALSE, ...) {
+  pal <- ecm_palettes[[palette]]
+  if (reverse) pal <- rev(pal)
+  colorRampPalette(pal, ...)
+}
+
+scale_color_ecm <- function(palette = "main", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- ecm_pal(palette = palette, reverse = reverse)
+  
+  if (discrete) {
+    discrete_scale("colour", paste0("ecm_", palette), palette = pal, ...)
+  } else {
+    scale_color_gradientn(colours = pal(256), ...)
+  }
+}
+
+scale_fill_ecm <- function(palette = "main", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- ecm_pal(palette = palette, reverse = reverse)
+  
+  if (discrete) {
+    discrete_scale("fill", paste0("ecm_", palette), palette = pal, ...)
+  } else {
+    scale_fill_gradientn(colours = pal(256), ...)
+  }
+}
 
 #Read the World Bank Global Findex data and the GDP per capita from the World Development Indicators data: 
 WB_GFdata<-read_excel(path=here('Data','FINDEXEXCEL.xlsx'),sheet = 'Data'
@@ -54,7 +98,7 @@ WB_account$MEX[WB_account$`Country Code`=='MEX']<-1
 #Make a graph to understand the evolution of the distribution for the accounts indicator. 
 p1<-WB_account %>% ggplot(aes(y=year,x=account.t.d/100,fill=..x..))+
   geom_density_ridges_gradient(scale =1.25, alpha = 0.9,)+
-  scale_fill_viridis(name = "Accounts", option = "C")+
+  scale_fill_ecm(palette = "mix", discrete = FALSE)+
   labs(title = "Evolution of the distribution of account ownership indicator in 126 countries.",subtitle="Every year the account ownership at a financial institution or with a mobile-money-service provider in the world is increasing.", caption="World Bank Group: Global Findex database",y="Year",x="Average number of accounts per inhabitant")+
   theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
         axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
@@ -101,7 +145,8 @@ WB_account<-WB_account %>%
   group_by(`Region Code`)
 
 
-region_colors<-c("High income" = "blue4","Middle income" = "blue3","Low income" = "blue2","World" = "grey50", "Mexico" = "green4")
+region_colors<-c("High income" = ecm_pal('hot')(3)[1],"Middle income" = ecm_pal('hot')(3)[2],"Low income" = ecm_pal('hot')(3)[3],"World" = ecm_colors[5], "Mexico" = ecm_colors[1])
+names(region_colors)<-c("High income","Middle income","Low income","World","Mexico")
 
 #Make a graph to compare Mexico with groups of countries by income. 
 p2<-WB_account %>% ggplot(aes(x=year,y=account.t.d/100, group=`Region Name`))+
@@ -142,6 +187,7 @@ ENIF18_df2$TLOC[ENIF18_df2$TLOC==2]<-1
 ENIF18_df2$TLOC[ENIF18_df2$TLOC==3]<-2
 ENIF18_df2$TLOC[ENIF18_df2$TLOC==4]<-2
 
+
 MEX_Inhabitants<-sum(ENIF18_df1$FAC_PER)
 MEX_Inhabitants_d<-ENIF18_df1 %>% select('SEXO', 'TLOC', 'FAC_PER') %>%
   group_by(.dots=c('SEXO', 'TLOC')) %>%
@@ -176,7 +222,18 @@ MEX_indicators<-MEX_Inhabitants_d %>%
   inner_join(MEX_credits, by=c('SEXO','TLOC')) %>%
   inner_join(MEX_insurance, by=c('SEXO','TLOC')) %>%
   inner_join(MEX_retirement, by=c('SEXO','TLOC'))
-  
+
+MEX_indicators_SEXO<-MEX_indicators %>%
+  select(-'TLOC') %>%
+  group_by(.dots=c('SEXO')) %>%
+  summarise_all(funs(sum))
+
+MEX_indicators_TLOC<-MEX_indicators %>%
+  group_by(.dots=c('TLOC')) %>%
+  select(-'SEXO') %>%
+  group_by(.dots=c('TLOC')) %>%
+  summarise_all(funs(sum))
+
 
 MEX_indicators<-MEX_indicators %>% 
   mutate(accounts_p=100*account/Inhabitants) %>%
@@ -185,33 +242,73 @@ MEX_indicators<-MEX_indicators %>%
   mutate(retirement_p=100*retirement/Inhabitants) %>%
   select('SEXO', 'TLOC', 'accounts_p','credits_p','insurance_p','retirement_p')
 
+MEX_indicators_SEXO<-MEX_indicators_SEXO %>% 
+  mutate(accounts_p=100*account/Inhabitants) %>%
+  mutate(credits_p=100*credits/Inhabitants) %>%
+  mutate(insurance_p=100*insurance/Inhabitants) %>%
+  mutate(retirement_p=100*retirement/Inhabitants) %>%
+  select('SEXO', 'accounts_p','credits_p','insurance_p','retirement_p')
+
+MEX_indicators_TLOC<-MEX_indicators_TLOC %>% 
+  mutate(accounts_p=100*account/Inhabitants) %>%
+  mutate(credits_p=100*credits/Inhabitants) %>%
+  mutate(insurance_p=100*insurance/Inhabitants) %>%
+  mutate(retirement_p=100*retirement/Inhabitants) %>%
+  select('TLOC', 'accounts_p','credits_p','insurance_p','retirement_p')
+
 names(MEX_indicators)<-c('SEXO', 'TLOC', 'Deposit account','Credit','Insurance','Retirement account')
+
+names(MEX_indicators_SEXO)<-c('SEXO', 'Deposit account','Credit','Insurance','Retirement account')
+
+names(MEX_indicators_TLOC)<-c('TLOC', 'Deposit account','Credit','Insurance','Retirement account')
 
 MEX_indicators<-MEX_indicators %>% 
   group_by(.dots=c('SEXO', 'TLOC')) %>%
   gather(`Deposit account`:`Retirement account`, key='Financial Service', value='Indicator')
+
+MEX_indicators_SEXO<-MEX_indicators_SEXO %>% 
+  group_by(.dots=c('SEXO')) %>%
+  gather(`Deposit account`:`Retirement account`, key='Financial Service', value='Indicator')
+
+MEX_indicators_TLOC<-MEX_indicators_TLOC %>% 
+  group_by(.dots=c('TLOC')) %>%
+  gather(`Deposit account`:`Retirement account`, key='Financial Service', value='Indicator')
+
 
 MEX_indicators$SEXO[MEX_indicators$SEXO=='1']<-'Male'
 MEX_indicators$SEXO[MEX_indicators$SEXO=='2']<-'Female'
 MEX_indicators$TLOC[MEX_indicators$TLOC=='1']<-'> 15,000'
 MEX_indicators$TLOC[MEX_indicators$TLOC=='2']<-'<= 14,999'
 
+MEX_indicators_SEXO$SEXO[MEX_indicators_SEXO$SEXO=='1']<-'Male'
+MEX_indicators_SEXO$SEXO[MEX_indicators_SEXO$SEXO=='2']<-'Female'
+MEX_indicators_TLOC$TLOC[MEX_indicators_TLOC$TLOC=='1']<-'> 15,000 inhabitants'
+MEX_indicators_TLOC$TLOC[MEX_indicators_TLOC$TLOC=='2']<-'<= 14,999 inhabitants'
+
 names(MEX_indicators)<-c('Gender', 'Community Size', 'Financial Service', 'Indicator')
 
-p3<-MEX_indicators %>% ggplot(aes(y=Indicator,x=`Community Size`,fill=`Gender`))+
-  facet_wrap(~`Financial Service`,scales = 'free')+
+names(MEX_indicators_SEXO)<-c('Group', 'Financial Service', 'Indicator')
+names(MEX_indicators_TLOC)<-c('Group', 'Financial Service', 'Indicator')
+
+MEX_indicators_2<-merge(MEX_indicators_SEXO,MEX_indicators_TLOC, all=TRUE)
+MEX_indicators_2$`Gap`<-"Community Size"
+MEX_indicators_2$`Gap`[MEX_indicators_2$Group=='Male'|MEX_indicators_2$Group=='Female']<-"Gender"
+
+
+p3<-MEX_indicators_2 %>% ggplot(aes(y=Indicator,x=`Financial Service`,fill=Group))+
+  facet_wrap(Gap~.,scales = 'free')+
   scale_y_continuous(expand = c(0,0),limits = c(0,70))+
   geom_bar(stat='Identity',position=position_dodge())+
-  scale_x_discrete(limits=c('<= 14,999', '> 15,000'))+
+  scale_fill_ecm(palette = 'mix',reverse = TRUE)+
   geom_text(aes(label=round(Indicator,digits=2)),position=position_dodge(0.9), vjust=-1)+
-  labs(subtitle = "The critical gaps for the financial services adoption in the country depend more on the community size than in the gender.",title="In Mexico the gender is not the only gap for financial services adoption.", caption="INEGI: National Survery of Financial Inclusion 2018.",x="Community size by number of inhabitants",y="Percentage of population (between 18 and 70 years) with a financial service account")+
+  theme(legend.position="bottom")+
+  labs(subtitle = "The critical gaps for the financial services adoption in the country depend more on the community size than in the gender.",title="In Mexico the gender is not the only gap for financial services adoption.", caption="INEGI: National Survery of Financial Inclusion 2018.",x="Financial service",y="Percentage of population (between 18 and 70 years) with a financial service account")+
   theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
         axis.text.y = element_text(color = "grey20", size = 10, angle = 0, hjust = 1, vjust = 0, face = "plain"),  
         axis.title.x = element_text(color = "grey20", size = 12, angle = 0, hjust = .5, vjust = 0, face = "plain"),
         axis.title.y = element_text(color = "grey20", size = 12, angle = 90, hjust = .5, vjust = .5, face = "plain"),
         plot.subtitle =element_text(color = "grey20", size = 15, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
-
 
 ggsave(here("output","plot3.pdf"), p3,width = 35, height = 25, units = "cm")
 
@@ -306,16 +403,14 @@ MEX_indicators2<-MEX_indicators2 %>%
 MEX_indicators<-MEX_indicators %>% 
   left_join(MEX_indicators2, by=c('Reasons','Financial Service'))
   
-
-
 p4<-MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))+
   facet_wrap(~`Financial Service`)+
   geom_treemap()+
   geom_treemap_subgroup_border(color='grey100')+
-  geom_treemap_text(aes(label=Percentage), color="black")+
-  scale_x_continuous(expand = c(0, 0)) +
+  geom_treemap_text(aes(label=paste(Percentage,"%")), color="black")+
+  scale_x_continuous(expand = c(0, 0), position='top') +
   scale_y_continuous(expand = c(0, 0)) +
-  scale_fill_brewer(palette = "Set1")+
+  scale_fill_ecm(palette = 'mix')+
   theme(legend.position="bottom")+
   labs(subtitle = "Main reasons for not acquire a financial service.",title="Affordability and Lack of Interest are the main reasons for not acquiring a financial service.", caption="INEGI: National Survery of Financial Inclusion 2018.",x="Percentage of respondents without the financial service.")+
   theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
@@ -372,8 +467,8 @@ CNBV_Average_Indicators$Variable[CNBV_Average_Indicators$Variable=='IMOR']<-'Cre
 p5<-CNBV_Average_Balance %>% ggplot(aes(x = Year, y = Amount/1000,group=Variable)) + 
   geom_line(aes(color = Variable), alpha = 1, size=2)+
   geom_dl(aes(label = round(last/1000,0)), method=list(dl.trans(y=y+0.2,x = x-0.25), "last.points", cex = 0.8))+
-  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
-  scale_fill_manual(values = c("#00AFBB", "#E7B800"))+
+  scale_color_manual(values = c("#719bff", "#f5f856")) +
+  scale_fill_manual(values = c("#719bff", "#f5f856"))+
   theme_minimal()+
   theme(legend.position="bottom")+
   labs(subtitle = "Assets and Liabilities Balance.", caption="   ",y="Billions of US dollars")+
@@ -387,6 +482,8 @@ p5<-CNBV_Average_Balance %>% ggplot(aes(x = Year, y = Amount/1000,group=Variable
 p6<-CNBV_Average_Indicators %>% ggplot(aes(x = Year, y = Indicator,group=Variable, color=Variable)) + 
   geom_line(alpha = 1, size=1.2)+
   geom_dl(aes(label = round(last,1)), method=list(dl.trans(y=y+0.3, x = x-0.25 ), "last.points", cex = 0.8))+
+  scale_color_manual(values = c("#ff6969")) +
+  scale_fill_manual(values = c("#ff6969"))+
   theme(legend.position="bottom")+
   labs(subtitle = "Credit risk of the overall portfolio.", caption="CNBV: Balance sheet historical series.",y="Percentage (%)")+
   theme(axis.text.x = element_text(color = "grey20", size = 10, angle = 0, hjust = .5, vjust = .5, face = "plain"),
@@ -400,3 +497,125 @@ p7<-grid.arrange(p5, p6,ncol = 2, nrow = 1, top=textGrob("The financial inclusio
 
   
 ggsave(here("output","plot5.pdf"), p7,width = 35, height = 15, units = "cm")
+
+
+#Branches vs Deposits:
+CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Sucursales'
+                       ,range=cell_rows(1:618)
+                       ,col_names = TRUE
+                       ,col_types=c(rep("text",4), rep("numeric", 1)))
+
+CNBV_df3<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Captacion'
+                     ,range=cell_rows(1:51)
+                     ,col_names = TRUE
+                     ,col_types=c(rep("text",1), rep("numeric", 1)))
+
+#Deposits and branchs table 
+top_banks<-c("BBVA Bancomer",	"Banorte",	"Banamex",	"Santander",	"HSBC",	"Scotiabank",	"Inbursa",	"Banco del Bajío",	"Banco Azteca",	"Banregio"
+)
+Deps_bank<-CNBV_df3
+Deps_bank$Group<-Deps_bank$Bank
+Deps_bank$Group[!(Deps_bank$Bank %in% top_banks)]<-'Others'
+
+Branchs_bank<-CNBV_df2
+Branchs_bank$Group<-Branchs_bank$nombre_publicacion
+Branchs_bank$Group[!(Branchs_bank$nombre_publicacion %in% top_banks)]<-'Others'
+
+Total_deposits<-sum(Deps_bank$Deposits)
+
+MEX_Deps_Bank<-Deps_bank %>% 
+  select('Group', 'Deposits') %>%
+  group_by(.dots=c('Group')) %>%
+  summarise(`Deposits`=sum(Deposits)) %>%
+  mutate(Deposits_p=round(100*Deposits/Total_deposits,0)) %>%
+  arrange(desc(Deposits)) %>%
+  group_by()
+
+MEX_Deps_Bank_2<-MEX_Deps_Bank %>%
+  select('Group','Deposits_p')%>%
+  gather(Deposits_p, value, -Group) %>%
+  spread(Group,value) %>%
+  select(-c('Deposits_p')) %>%
+  select(c(top_banks,'Others'))
+
+MEX_Branchs_Bank<-Branchs_bank %>%
+  select('Group', 'Num_Sucursales') %>%
+  group_by(.dots=c('Group')) %>%
+  summarise(`Branches`=sum(Num_Sucursales)) %>%
+  mutate(Branches_p=round(round(100*Branches/sum(MEX_Branchs_Bank$Branches),1),0)) %>%
+  arrange(desc(Branches)) %>%
+  group_by()
+
+MEX_Branchs_Bank_2<-MEX_Branchs_Bank %>%
+  select('Group','Branches_p')%>%
+  gather(Branches_p, value, -Group) %>%
+  spread(Group,value) %>%
+  select(-c('Branches_p')) %>%
+  select(c(top_banks,'Others'))
+
+nrows <- 10
+aux <- expand.grid(y = 1:nrows, x = 1:nrows)
+aux$Bank<- factor(rep(names(MEX_Deps_Bank_2), MEX_Deps_Bank_2))
+aux$Indicator<-'Received Deposits ($)'
+aux2<- expand.grid(y = 1:nrows, x = 1:nrows)
+aux2$Bank<- factor(rep(names(MEX_Branchs_Bank_2), MEX_Branchs_Bank_2))
+aux2$Indicator<-'Number of Branches'
+
+aux<-rbind(aux,aux2)
+
+aux %>% ggplot(aes(x = x, y = y, fill = Bank)) +
+  facet_wrap(~Indicator)+
+  geom_tile(color = "black", size = 0.5)+
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0), trans = 'reverse') +
+  scale_fill_discrete(breaks=c(top_banks,'Others'))+
+  scale_fill_ecm(palette = 'main',discrete = TRUE)+
+  labs(title="Three banks holds almost 50% of the deposits.", subtitle="BBVA and Banco Azteca have the same number of branches but BBVA holds 22% of the deposits.", caption="CNBV: Balance sheet historical series.")+
+  theme_minimal()+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+
+#Branches by State
+CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Sucursales'
+                     ,range=cell_rows(1:618)
+                     ,col_names = TRUE
+                     ,col_types=c(rep("text",4), rep("numeric", 1)))
+
+top_banks<-c("BBVA Bancomer",	"Banorte",	"Banamex","Banco Azteca","Santander")
+
+Branchs_bank<-CNBV_df2
+Branchs_bank$Group<-Branchs_bank$nombre_publicacion
+Branchs_bank$Group[!(Branchs_bank$nombre_publicacion %in% top_banks)]<-'Others'
+
+
+MEX_Branchs_State<-Branchs_bank %>%
+  select('Group','dl_estado_short', 'Num_Sucursales') %>%
+  group_by(.dots=c('Group','dl_estado_short')) %>%
+  summarise(`Branches`=sum(Num_Sucursales)) %>%
+  gather(`Branches`, key='Variable', value='Branches')
+
+MEX_Branchs_State_2<-Branchs_bank %>%
+  select('dl_estado_short','Num_Sucursales') %>%
+  group_by(.dots=c('dl_estado_short')) %>%
+  summarise(`Branches`=sum(Num_Sucursales)) %>%
+  gather(`Branches`, key='Variable', value='Branches_Estado')
+
+MEX_Branchs_State<- MEX_Branchs_State %>%
+  left_join(MEX_Branchs_State_2, by=c('dl_estado_short'))
+
+MEX_Branchs_State$`Branches Share`<-round(100*MEX_Branchs_State$Branches/MEX_Branchs_State$Branches_Estado,0)
+
+MEX_Branchs_State %>% ggplot( aes(x = "", y=`Branches Share`,fill = Group)) +
+  facet_wrap(dl_estado_short~.,ncol=8,nrow=4)+
+  geom_bar(width = 1,stat='identity')+
+  scale_fill_discrete(breaks=c(top_banks,'Others'))+
+  scale_fill_ecm(palette = 'main',discrete = TRUE)+
+  theme(axis.line = element_blank(), plot.title = element_text(hjust=0.5)) + 
+  labs(x=NULL, y=NULL,title="Pie Chart of class", caption="Source: mpg")+
+  coord_polar(theta = "y", start=0)+
+  labs(title="There's a high concentration in every state", subtitle="The same five banks concentrate at least 50% of the branches in all the states.", caption="CNBV: Balance sheet historical series.")+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+
