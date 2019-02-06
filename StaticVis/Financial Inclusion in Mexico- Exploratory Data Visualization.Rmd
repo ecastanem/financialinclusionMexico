@@ -545,7 +545,7 @@ grid.arrange(p5, p6,ncol = 2, nrow = 1, top=textGrob("The banking industry is gr
 
 ```
 
-Moreover, 60% of the deposits are hold by four banks, whereas the remaining 40% is hold by more than 40, which indicates that the industry follows an oligopoly structure. Besides, these four banks hold only 35% of the branches in the country, which might be because of the geographical distribution of the customers. 
+Moreover, 70% of the deposits are hold by five banks, whereas the remaining 30% is hold by more than 40, which indicates that the industry follows an oligopoly structure. Besides, these five banks hold only 53% of the branches in the country, which might be because of the geographical distribution of the customers. 
 
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE,fig.height=8, fig.width=14}
@@ -622,7 +622,7 @@ aux %>% ggplot(aes(x = x, y = y, fill = Bank)) +
   scale_y_continuous(expand = c(0, 0), trans = 'reverse') +
   scale_fill_discrete(breaks=c(top_banks,'Others'))+
   scale_fill_ecm(palette = 'main',discrete = TRUE)+
-  labs(title="Three banks holds almost 50% of the deposits.", subtitle="BBVA and Banco Azteca have the same number of branches but BBVA holds 22% of the deposits.", caption="CNBV: Balance sheet historical series.")+
+  labs(title="Three banks holds almost 50% of the deposits.", subtitle="BBVA and Banco Azteca have the same number of branches but BBVA holds 22% of the deposits and Banco Azteca only 2%.", caption="CNBV: Balance sheet historical series.")+
   theme_minimal()+
   theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
@@ -630,7 +630,7 @@ aux %>% ggplot(aes(x = x, y = y, fill = Bank)) +
 
 ```
 
-There's a high concentration of the branches at State level, the same five banks hold at least 50% of the branches in each state.These indicates that the trap on the growing of the financial inclusion in the country might be associated to an oligopoly issue. It would be interesting to compare the number of branches with the percentage of accounts and deposits by state to validate this hypothesis. 
+When analyzing the branches market distribution at State level, we found that there's a high concentration, BBVA, Banamex, Banorte, Banco Azteca and Santander hold at least 50% of the branches in each State.This indicates that the growing of the financial inclusion trap might be associated to an oligopoly at regional level.
 
 ```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.height=8, fig.width=14}
 CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Sucursales'
@@ -665,14 +665,15 @@ MEX_Branchs_State$`Branches Share`<-round(100*MEX_Branchs_State$Branches/MEX_Bra
 MEX_Branchs_State %>% ggplot( aes(x = "", y=`Branches Share`,fill = Group)) +
   facet_wrap(dl_estado_short~.,ncol=8,nrow=4)+
   geom_bar(width = 1,stat='identity')+
-  scale_fill_discrete(breaks=c(top_banks,'Others'))+
-  scale_fill_ecm(palette = 'main',discrete = TRUE)+
+  theme_minimal()+
+  scale_fill_manual(values=c('Others'="#cfcfcf","BBVA Bancomer"=ecm_pal(palette = 'cool')(5)[1],	"Banorte"=ecm_pal(palette = 'cool')(5)[2],	"Banamex"=ecm_pal(palette = 'cool')(5)[3],"Banco Azteca"=ecm_pal(palette = 'cool')(5)[4],"Santander"=ecm_pal(palette = 'cool')(5)[5]))+
   theme(axis.line = element_blank(), plot.title = element_text(hjust=0.5)) + 
-  labs(x=NULL, y=NULL,title="Pie Chart of class", caption="Source: mpg")+
-  coord_polar(theta = "y", start=0)+
-  labs(title="There's a high concentration in every state", subtitle="The same five banks concentrate at least 50% of the branches in all the states.", caption="CNBV: Balance sheet historical series.")+
+  coord_polar(theta = "y", start=90)+
+  labs(x=NULL, y=NULL, title="There's a high concentration in every state", subtitle="The same five banks concentrate at least 50% of the branches in all the states.", caption="CNBV: Balance sheet historical series.")+
   theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+
 
 
 

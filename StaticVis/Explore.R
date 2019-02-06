@@ -570,7 +570,7 @@ aux %>% ggplot(aes(x = x, y = y, fill = Bank)) +
   scale_y_continuous(expand = c(0, 0), trans = 'reverse') +
   scale_fill_discrete(breaks=c(top_banks,'Others'))+
   scale_fill_ecm(palette = 'main',discrete = TRUE)+
-  labs(title="Three banks holds almost 50% of the deposits.", subtitle="BBVA and Banco Azteca have the same number of branches but BBVA holds 22% of the deposits.", caption="CNBV: Balance sheet historical series.")+
+  labs(title="Three banks holds almost 50% of the deposits.", subtitle="BBVA and Banco Azteca have the same number of branches but BBVA holds 22% of the deposits and Banco Azteca only 2%.", caption="CNBV: Balance sheet historical series.")+
   theme_minimal()+
   theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
@@ -609,12 +609,11 @@ MEX_Branchs_State$`Branches Share`<-round(100*MEX_Branchs_State$Branches/MEX_Bra
 MEX_Branchs_State %>% ggplot( aes(x = "", y=`Branches Share`,fill = Group)) +
   facet_wrap(dl_estado_short~.,ncol=8,nrow=4)+
   geom_bar(width = 1,stat='identity')+
-  scale_fill_discrete(breaks=c(top_banks,'Others'))+
-  scale_fill_ecm(palette = 'main',discrete = TRUE)+
+  theme_minimal()+
+  scale_fill_manual(values=c('Others'="#cfcfcf","BBVA Bancomer"=ecm_pal(palette = 'cool')(5)[1],	"Banorte"=ecm_pal(palette = 'cool')(5)[2],	"Banamex"=ecm_pal(palette = 'cool')(5)[3],"Banco Azteca"=ecm_pal(palette = 'cool')(5)[4],"Santander"=ecm_pal(palette = 'cool')(5)[5]))+
   theme(axis.line = element_blank(), plot.title = element_text(hjust=0.5)) + 
-  labs(x=NULL, y=NULL,title="Pie Chart of class", caption="Source: mpg")+
-  coord_polar(theta = "y", start=0)+
-  labs(title="There's a high concentration in every state", subtitle="The same five banks concentrate at least 50% of the branches in all the states.", caption="CNBV: Balance sheet historical series.")+
+  coord_polar(theta = "y", start=90)+
+  labs(x=NULL, y=NULL, title="There's a high concentration in every state", subtitle="The same five banks concentrate at least 50% of the branches in all the states.", caption="CNBV: Balance sheet historical series.")+
   theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
