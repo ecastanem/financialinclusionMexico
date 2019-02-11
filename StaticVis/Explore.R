@@ -15,7 +15,7 @@ library(sf)
 library(broom)
 
 #Create Scale of colors:
-ecm_colors <- c(`blue`="#719bff", `pink`="#ff6969", `orange`="#ff9f15", `yellow`="#f5f856",`grey`="#aaaaaa")
+ecm_colors <- c(`blue`="#719bff", `pink`="#ff6969", `orange`="#ff9f15", `yellow`="#f5f856",`green`="#b1f856",`grey`="#aaaaaa")
 
 #Function to get the colors:
 ecm_cols <- function(...) {
@@ -29,7 +29,8 @@ ecm_cols <- function(...) {
 ecm_palettes <- list(`main`=ecm_cols("blue", "pink", "orange","yellow","grey"),
   `cool`=ecm_cols("blue", "pink"),
   `hot` = ecm_cols("yellow", "orange"),
-  `mix`=ecm_cols("blue","pink","orange","grey"))
+  `mix`=ecm_cols("blue","pink","orange","grey"),
+  `drivelight`=ecm_cols("green","yellow","orange"))
 
 ecm_pal <- function(palette = "main", reverse = FALSE, ...) {
   pal <- ecm_palettes[[palette]]
@@ -691,7 +692,7 @@ map1<-Map_MEX_Pop_Acc_Branch %>% ggplot() +
   theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
-
+#Map_MEX_Pop_Acc_Branch[Map_MEX_Pop_Acc_Branch$id %in% c('09','13','15','17','21','22','29'),]
 
 map2<-Map_MEX_Pop_Acc_Branch %>% ggplot() +
   geom_polygon(aes(x=long, y=lat, group=group, fill=`Accounts per 10,000 inhabitants`),color='white')+
@@ -705,4 +706,34 @@ map2<-Map_MEX_Pop_Acc_Branch %>% ggplot() +
 
 
 map3<-grid.arrange(map1, map2,ncol = 2, nrow = 1, top=textGrob("CDMX, Nuevo Leon and Jalisco are the states with more accounts and branches in Mexico",gp=gpar(fontsize=20,fontface="bold"),x=0,hjust = 0))
+
+#Map 2
+MEX_map_state_df <- st_read(dsn=here('Data','MAPSMX_STATE'), layer="areas_geoestadisticas_estatales")
+MEX_map_mun_df <- st_read(dsn=here('Data','MAPSMX_MUN'), layer="areas_geoestadisticas_municipales")
+
+CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Creditos_Mun'
+                     ,range=cell_rows(1:2437)
+                     ,col_names = TRUE
+                     ,col_types=c(rep("text",2), rep("numeric", 2)))
+
+MEX_map_mun_cred<- MEX_map_mun_df %>%
+  left_join(CNBV_df2,by=c('CVE_ENT','CVE_MUN'))
+names(MEX_map_mun_cred)[4]<-'Credit Accounts'
+names(MEX_map_mun_cred)[5]<-'HHI'
+MEX_map_mun_cred$`Concentration Group`<-'High: HHI above 2500'
+MEX_map_mun_cred$`Concentration Group`[MEX_map_mun_cred$HHI<=2500]<-'Moderate: HHI between 1500 and 2500'
+MEX_map_mun_cred$`Concentration Group`[MEX_map_mun_cred$HHI<=1500]<-'Low: HHI below 1500'
+
+ihh_groups<-c('Low: HHI below 1500'="#b1f856",'Moderate: HHI between 1500 and 2500'="#f5f856",'High: HHI above 2500'="#ff9f15")
+ihh_groups2<-c('Low: HHI below 1500','Moderate: HHI between 1500 and 2500','High: HHI above 2500')
+
+MEX_map_mun_cred %>% ggplot()+
+  geom_sf(aes(fill=`Concentration Group`),color='transparent')+
+  scale_fill_manual(values=ihh_groups,breaks=ihh_groups2)+
+  geom_sf(data=MEX_map_state_df,color='black',fill='transparent')+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(), panel.grid.major = element_line(color='white'), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_blank())+
+  labs(x=NULL, y=NULL, title="Concentration",subtitle="The concentration index (HHI)",caption="CNBV: Balance sheet historical series.")+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+  
 

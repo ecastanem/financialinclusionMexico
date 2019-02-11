@@ -30,7 +30,7 @@ library(broom)
 
 
 #Create Scale of colors:
-ecm_colors <- c(`blue`="#719bff", `pink`="#ff6969", `orange`="#ff9f15", `yellow`="#f5f856",`grey`="#aaaaaa")
+ecm_colors <- c(`blue`="#719bff", `pink`="#ff6969", `orange`="#ff9f15", `yellow`="#f5f856",`green`="#b1f856",`grey`="#aaaaaa")
 
 #Function to get the colors:
 ecm_cols <- function(...) {
@@ -44,7 +44,8 @@ ecm_cols <- function(...) {
 ecm_palettes <- list(`main`=ecm_cols("blue", "pink", "orange","yellow","grey"),
   `cool`=ecm_cols("blue", "pink"),
   `hot` = ecm_cols("yellow", "orange"),
-  `mix`=ecm_cols("blue","pink","orange","grey"))
+  `mix`=ecm_cols("blue","pink","orange","grey"),
+  `drivelight`=ecm_cols("green","yellow","orange"))
 
 ecm_pal <- function(palette = "main", reverse = FALSE, ...) {
   pal <- ecm_palettes[[palette]]
@@ -355,6 +356,99 @@ MEX_indicators_2 %>% ggplot(aes(y=Indicator,x=`Financial Service`,fill=Group))+
 
 ```
 
+The gap in the financial services adoption is also very clear at State level, and is not only observed in the number of accounts, but in the number of branches as well. When comparing the States, Nuevo León and Mexico City are the ones with high number of accounts and branches per 10,000 inhabitants, whereas Chiapas and Oaxaca are the ones with the lowest numbers. Additionally, there's a clear difference between the North and South regions of the country.    
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE , fig.height=6, fig.width=12}
+CONAPO_df1<-read_excel(path=here('Data','POB_CONAPO.xlsx'),sheet = 'Poblacion18_70'
+                     ,range=cell_rows(1:33)
+                     ,col_names = TRUE
+                     ,col_types=c(rep("text",3), rep("numeric", 4)))
+
+names(CONAPO_df1)[1]<-'id'
+
+MEX_map_state<-readOGR(here('Data','MAPSMX_STATE'), layer="areas_geoestadisticas_estatales", verbose = FALSE)
+MEX_map_state_df <- fortify(MEX_map_state, region="CVE_ENT")
+
+CNBV_df1<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Sucursales'
+                     ,range=cell_rows(1:618)
+                     ,col_names = TRUE
+                     ,col_types=c(rep("text",4), rep("numeric", 1)))
+
+top_banks<-c("BBVA Bancomer",	"Banorte",	"Banamex","Banco Azteca","Santander")
+
+Branches_bank_state<-CNBV_df1
+Branches_bank_state$Group<-Branches_bank_state$nombre_publicacion
+Branches_bank_state$Group[!(Branches_bank_state$nombre_publicacion %in% top_banks)]<-'Others'
+
+
+CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Cuentas'
+                     ,range=cell_rows(1:651)
+                     ,col_names = TRUE
+                     ,col_types=c(rep("text",4), rep("numeric", 1)))
+
+Accounts_bank_state<-CNBV_df2
+Accounts_bank_state$Group<-Accounts_bank_state$nombre_publicacion
+Accounts_bank_state$Group[!(Accounts_bank_state$nombre_publicacion %in% top_banks)]<-'Others'
+
+MEX_Branches_State<-Branches_bank_state %>%
+  select('cve_inegi', 'Num_Sucursales') %>%
+  group_by(.dots=c('cve_inegi')) %>%
+  summarise(`Branches`=sum(Num_Sucursales)) %>%
+  gather(`Branches`, key='Variable', value='Branches')
+
+names(MEX_Branches_State)[1]<-'id'
+
+MEX_Accounts_State<-Accounts_bank_state %>%
+  select('cve_inegi', 'Num_Cuentas') %>%
+  group_by(.dots=c('cve_inegi')) %>%
+  summarise(`Accounts`=sum(Num_Cuentas)) %>%
+  gather(`Accounts`, key='Variable', value='Accounts')
+
+names(MEX_Accounts_State)[1]<-'id'
+
+MEX_Pop_Acc_Branch<-CONAPO_df1 %>%
+  select('id','POB_1118') %>%
+  group_by(.dots=c('id')) %>%
+  inner_join(MEX_Accounts_State,by=c('id')) %>%
+  inner_join(MEX_Branches_State,by=c('id')) %>%
+  mutate(Branches_p=round(10000*Branches/POB_1118,2)) %>%
+  mutate(Accounts_p=round(10000*Accounts/POB_1118,2)) %>%
+  select('id','Branches_p', 'Accounts_p')
+
+names(MEX_Pop_Acc_Branch)<-c('id', 'Branches per 10,000 inhabitants','Accounts per 10,000 inhabitants')
+
+Map_MEX_Pop_Acc_Branch <- inner_join(MEX_map_state_df, MEX_Pop_Acc_Branch, by="id")
+
+map1<-Map_MEX_Pop_Acc_Branch %>% ggplot() +
+  geom_polygon(aes(x=long, y=lat, group=group, fill=`Branches per 10,000 inhabitants`),color='white')+
+  theme_minimal()+
+  theme(legend.position = 'bottom', legend.key.width = unit(1,'cm'),legend.title = element_blank())+
+  scale_fill_ecm(palette = 'cool',discrete = FALSE, reverse = TRUE)+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_blank())+
+  labs(x=NULL, y=NULL, title="Branches per 10,000 inhabitants",caption="CNBV: Balance sheet historical series.")+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+
+
+map2<-Map_MEX_Pop_Acc_Branch %>% ggplot() +
+  geom_polygon(aes(x=long, y=lat, group=group, fill=`Accounts per 10,000 inhabitants`),color='white')+
+  theme_minimal()+
+  theme(legend.position = 'bottom', legend.key.width = unit(1,'cm'), legend.title = element_blank())+
+  scale_fill_ecm(palette = 'cool',discrete = FALSE, reverse = TRUE)+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_blank())+
+  labs(x=NULL, y=NULL, title="Accounts per 10,000 inhabitants",caption="CNBV: Balance sheet historical series.")+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
+        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
+
+
+map3<-grid.arrange(map1, map2,ncol = 2, nrow = 1, top=textGrob("CDMX, Nuevo Leon and Jalisco are the states with more accounts and branches in Mexico",gp=gpar(fontsize=20,fontface="bold"),x=0,hjust = 0))
+
+
+```
+
+### Why are the Mexicans not acquiring financial services?
+
 According to the 2018 National Survey of Financial Inclusion, based on a 14,500 household sample all over the country, the main reasons for not acquiring a financial service can be grouped in 5 categories: Lack of interest, Unattractive offer, Distrust in the financial institutions, Non affordability, Ignorance regarding the financial service. The first four categories are directly related with the quality and cost of the service offer, whereas the last one is related to the financial education.
 
 ```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE, warning=FALSE}
@@ -468,7 +562,7 @@ MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))
 
 ```
 
-### What's the trend of the banking industry based on the regulator's information?
+### If the financial inclusion in the country is stuck, is the banking industry in Mexico growing?
 
 Although the World Bank Group data indicate that the financial inclusion in Mexico is trapped, the amount of deposits and credit lines in the country had increased in the last years, whereas the credit portfolio quality had decreased. This indicates that the banks are collecting more money and installing more credit lines with better quality. In other words, the financial inclusion level in Mexico is not growing, but the amount of deposits and credits are.   
 
@@ -681,93 +775,38 @@ MEX_Branchs_State %>% ggplot( aes(x = "", y=`Branches Share`,fill = Group)) +
 
 
 ```
-At State level, there's a clear gap between those state with high number of branches and accounts per 10,000 inhabitants, such as Nuevo León, Jalisco and Mexico City, and those states with low branches and accounts penetration, such as Chiapas, Oaxaca and Guerrero. 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE , fig.height=6, fig.width=12}
-CONAPO_df1<-read_excel(path=here('Data','POB_CONAPO.xlsx'),sheet = 'Poblacion18_70'
-                     ,range=cell_rows(1:33)
+Moreover, the oligopoly structure is affecting the competition in the industry in all the country, this can be shown by analyzing the concentration index (HHI) at municipal level. According to the international standards, a market is highly concentrated if the HHI index is above 2,500 points, moderately concentrated if the index is between 1,500 and 2,500, and not concentrated if the index is below 1,500. In the case of Mexico, only 7 out of 2,458 municipalities have an HHI below 1,500, whereas 2,222 municipalities have an index above 2,500. The problem with high concentrated markets is that the lack of competition might originate high prices, low quality services, among others.        
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE , fig.height=8, fig.width=14}
+MEX_map_state_df <- st_read(dsn=here('Data','MAPSMX_STATE'), layer="areas_geoestadisticas_estatales", quiet = TRUE)
+MEX_map_mun_df <- st_read(dsn=here('Data','MAPSMX_MUN'), layer="areas_geoestadisticas_municipales", quiet = TRUE)
+
+CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Creditos_Mun'
+                     ,range=cell_rows(1:2437)
                      ,col_names = TRUE
-                     ,col_types=c(rep("text",3), rep("numeric", 4)))
+                     ,col_types=c(rep("text",2), rep("numeric", 2)))
 
-names(CONAPO_df1)[1]<-'id'
+MEX_map_mun_cred<- MEX_map_mun_df %>%
+  left_join(CNBV_df2,by=c('CVE_ENT','CVE_MUN'))
+names(MEX_map_mun_cred)[4]<-'Credit Accounts'
+names(MEX_map_mun_cred)[5]<-'HHI'
+MEX_map_mun_cred$`Concentration Group`<-'High: HHI above 2500'
+MEX_map_mun_cred$`Concentration Group`[MEX_map_mun_cred$HHI<=2500]<-'Moderate: HHI between 1500 and 2500'
+MEX_map_mun_cred$`Concentration Group`[MEX_map_mun_cred$HHI<=1500]<-'Low: HHI below 1500'
 
-MEX_map_state<-readOGR(here('Data','MAPSMX_STATE'), layer="areas_geoestadisticas_estatales", verbose = FALSE)
-MEX_map_state_df <- fortify(MEX_map_state, region="CVE_ENT")
+ihh_groups<-c('Low: HHI below 1500'="#b1f856",'Moderate: HHI between 1500 and 2500'="#f5f856",'High: HHI above 2500'="#ff9f15")
+ihh_groups2<-c('Low: HHI below 1500','Moderate: HHI between 1500 and 2500','High: HHI above 2500')
 
-CNBV_df1<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Sucursales'
-                     ,range=cell_rows(1:618)
-                     ,col_names = TRUE
-                     ,col_types=c(rep("text",4), rep("numeric", 1)))
-
-top_banks<-c("BBVA Bancomer",	"Banorte",	"Banamex","Banco Azteca","Santander")
-
-Branches_bank_state<-CNBV_df1
-Branches_bank_state$Group<-Branches_bank_state$nombre_publicacion
-Branches_bank_state$Group[!(Branches_bank_state$nombre_publicacion %in% top_banks)]<-'Others'
-
-
-CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Cuentas'
-                     ,range=cell_rows(1:651)
-                     ,col_names = TRUE
-                     ,col_types=c(rep("text",4), rep("numeric", 1)))
-
-Accounts_bank_state<-CNBV_df2
-Accounts_bank_state$Group<-Accounts_bank_state$nombre_publicacion
-Accounts_bank_state$Group[!(Accounts_bank_state$nombre_publicacion %in% top_banks)]<-'Others'
-
-MEX_Branches_State<-Branches_bank_state %>%
-  select('cve_inegi', 'Num_Sucursales') %>%
-  group_by(.dots=c('cve_inegi')) %>%
-  summarise(`Branches`=sum(Num_Sucursales)) %>%
-  gather(`Branches`, key='Variable', value='Branches')
-
-names(MEX_Branches_State)[1]<-'id'
-
-MEX_Accounts_State<-Accounts_bank_state %>%
-  select('cve_inegi', 'Num_Cuentas') %>%
-  group_by(.dots=c('cve_inegi')) %>%
-  summarise(`Accounts`=sum(Num_Cuentas)) %>%
-  gather(`Accounts`, key='Variable', value='Accounts')
-
-names(MEX_Accounts_State)[1]<-'id'
-
-MEX_Pop_Acc_Branch<-CONAPO_df1 %>%
-  select('id','POB_1118') %>%
-  group_by(.dots=c('id')) %>%
-  inner_join(MEX_Accounts_State,by=c('id')) %>%
-  inner_join(MEX_Branches_State,by=c('id')) %>%
-  mutate(Branches_p=round(10000*Branches/POB_1118,2)) %>%
-  mutate(Accounts_p=round(10000*Accounts/POB_1118,2)) %>%
-  select('id','Branches_p', 'Accounts_p')
-
-names(MEX_Pop_Acc_Branch)<-c('id', 'Branches per 10,000 inhabitants','Accounts per 10,000 inhabitants')
-
-Map_MEX_Pop_Acc_Branch <- inner_join(MEX_map_state_df, MEX_Pop_Acc_Branch, by="id")
-
-map1<-Map_MEX_Pop_Acc_Branch %>% ggplot() +
-  geom_polygon(aes(x=long, y=lat, group=group, fill=`Branches per 10,000 inhabitants`),color='white')+
-  theme_minimal()+
-  theme(legend.position = 'bottom', legend.key.width = unit(1,'cm'),legend.title = element_blank())+
-  scale_fill_ecm(palette = 'cool',discrete = FALSE, reverse = TRUE)+
-  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_blank())+
-  labs(x=NULL, y=NULL, title="Branches per 10,000 inhabitants",caption="CNBV: Balance sheet historical series.")+
+MEX_map_mun_cred %>% ggplot()+
+  geom_sf(aes(fill=`Concentration Group`),color='transparent')+
+  scale_fill_manual(values=ihh_groups,breaks=ihh_groups2)+
+  geom_sf(data=MEX_map_state_df,color='black',fill='transparent')+
+  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(), panel.grid.major = element_line(color='white'), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_blank())+
+  labs(x=NULL, y=NULL, title="The commercial credit service accounts are highly concentrated.",subtitle="In 90% of the 2,458 municipalities in Mexico, the concentration index (HHI) is above 2,500 points, whereas in only 7 is below 1,500.",caption="CNBV: Balance sheet historical series.")+
   theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
-
-
-map2<-Map_MEX_Pop_Acc_Branch %>% ggplot() +
-  geom_polygon(aes(x=long, y=lat, group=group, fill=`Accounts per 10,000 inhabitants`),color='white')+
-  theme_minimal()+
-  theme(legend.position = 'bottom', legend.key.width = unit(1,'cm'), legend.title = element_blank())+
-  scale_fill_ecm(palette = 'cool',discrete = FALSE, reverse = TRUE)+
-  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_blank())+
-  labs(x=NULL, y=NULL, title="Accounts per 10,000 inhabitants",caption="CNBV: Balance sheet historical series.")+
-  theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
-        plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
-
-
-map3<-grid.arrange(map1, map2,ncol = 2, nrow = 1, top=textGrob("CDMX, Nuevo Leon and Jalisco are the states with more accounts and branches in Mexico",gp=gpar(fontsize=20,fontface="bold"),x=0,hjust = 0))
 
 
 ```
