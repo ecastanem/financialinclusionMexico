@@ -799,7 +799,7 @@ MEX_map_mun_cred$`Concentration Group`[MEX_map_mun_cred$HHI<1500]<-'Low: HHI bel
 ihh_groups<-c('Low: HHI below 1,500'="#5da94a",'Moderate: HHI between 1,500 and 2,499'="#fffb05",'High: HHI between 2,500 and 4,999'="#ff9f15",'Very high: HHI between 5,000 and 9,999'="#ff6969",'Monopoly: HHI equal to 10,000'="#ff0000")
 ihh_groups2<-c('Low: HHI below 1,500','Moderate: HHI between 1,500 and 2,499','High: HHI between 2,500 and 4,999','Very high: HHI between 5,000 and 9,999','Monopoly: HHI equal to 10,000')
 
-MEX_map_mun_cred %>% ggplot()+
+main<-MEX_map_mun_cred %>% ggplot()+
   geom_sf(aes(fill=`Concentration Group`),color='transparent')+
   scale_fill_manual(values=ihh_groups,breaks=ihh_groups2)+
   geom_sf(data=MEX_map_state_df,color="#ebebeb",fill='transparent')+
@@ -808,7 +808,17 @@ MEX_map_mun_cred %>% ggplot()+
   theme(axis.text = element_blank(), axis.title = element_blank(), axis.ticks = element_blank(),legend.position = "bottom",legend.title = element_blank(),plot.subtitle =element_text(color = "grey20", size = 13, angle = 0, hjust = 0, vjust = .5, face = "plain"),
         plot.title =element_text(color = "grey20", size = 19, angle = 0, hjust = 0, vjust = .5, face = "bold"))
 
+sub<-MEX_map_mun_cred %>% ggplot()+
+  geom_histogram(aes(x=HHI,color=`Concentration Group`),binwidth = 1000, fill = "grey", color = "black",show.legend = TRUE)+
+  theme_minimal()+
+  scale_x_continuous(label=comma)+
+  labs(title='HHI Distribution')+
+  theme(panel.grid.major = element_line(color='transparent'), panel.grid.minor = element_blank(), panel.background = element_blank())
 
+vp<-viewport(width =unit(3,'inches'), height = unit(2.5,'inches'),x=.75,y=.7)
+
+print(main)
+print(sub, vp = vp)
 
 ```
 
