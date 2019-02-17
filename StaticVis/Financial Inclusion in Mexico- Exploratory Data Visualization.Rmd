@@ -2,9 +2,7 @@
 title: "Financial Inclusion in Mexico"
 author: "Esteban Castaneda"
 date: "January 27, 2019"
-output: 
-  html_document:
-    code_folding: hide
+output: html_document
 ---
 
 <style>
@@ -85,7 +83,7 @@ At a worldwide level, economies have become conscious about the relevance of fin
 Since 2011, the level of financial inclusion has increased. As can be seen in the following graph, the distribution of the account ownership indicator across 126 economies has shifted from the lower to the upper range. Moreover, in all the years the distribution shows a multimodal behavior which is basically due to the type of countries included in the sample: developed and developing. 
 
 
-```{r, echo=TRUE, fig.height=8, fig.width=12, message=FALSE}
+```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE}
 #Read the World Bank Global Findex data and the GDP per capita from the World Development Indicators data: 
 WB_GFdata<-read_excel(path=here('Data','FINDEXEXCEL.xlsx'),sheet = 'Data'
                     ,range=cell_rows(1:142009)
@@ -147,7 +145,7 @@ WB_account %>% ggplot(aes(y=year,x=account.t.d/100,fill=..x..))+
 
 Mexico is one of the developing countries that is struggling with the financial inclusion issue. According to the World Bank Group, the account ownership indicator in the country increased from 2011 to 2014, just like the rest of the world's regions, but did not follow the world's tendency from 2014 to 2017. This behavior is particularly interesting because even the low income regions had shown an increases in financial inclusion.
 
-```{r, echo=TRUE, fig.height=8, fig.width=12, message=FALSE}
+```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE}
 
 WB_account<-WB_GFdata %>% 
   filter(`Indicator Code`=='account.t.d', !is.na(`2011`),!is.na(`2014`),!is.na(`2017`))
@@ -210,7 +208,7 @@ As of June 2018, the financial service with the highest adoption rate is the dep
 
 
 
-```{r, echo=TRUE, fig.height=8, fig.width=12, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE, warning=FALSE}
 ENIF18_df1<-read_excel(path=here('Data','tmodulo.xlsx'),sheet = 'tmodulo'
                        ,range=cell_rows(1:12447)
                        ,col_names = TRUE
@@ -363,7 +361,7 @@ MEX_indicators_2 %>% ggplot(aes(y=Indicator,x=`Financial Service`,fill=Group))+
 
 The gap in the financial services adoption is also very clear at State level. When comparing the States, Nuevo León and Mexico City are the ones with high number of accounts and branches per 10,000 inhabitants, whereas Chiapas and Oaxaca are the ones with the lowest numbers. Additionally, there's a clear difference between the North and South regions of the country.    
 
-```{r, echo=TRUE, message=FALSE, warning=FALSE , fig.height=9, fig.width=14}
+```{r, echo=FALSE, message=FALSE, warning=FALSE , fig.height=9, fig.width=14}
 CONAPO_df1<-read_excel(path=here('Data','POB_CONAPO.xlsx'),sheet = 'Poblacion18_70'
                      ,range=cell_rows(1:33)
                      ,col_names = TRUE
@@ -449,7 +447,7 @@ Map_MEX_Pop_Acc_Branch %>% ggplot() +
 
 According to the 2018 National Survey of Financial Inclusion, based on a 14,500 household sample all over the country, the main reasons for not acquiring a financial service can be grouped in 5 categories: Lack of interest, Unattractive offer, Distrust in the financial institutions, Non affordability, Ignorance regarding the financial service. The first four categories are directly related with the quality and cost of the service offer, whereas the last one is related to the financial education.
 
-```{r, echo=TRUE, fig.height=8, fig.width=12, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, fig.height=8, fig.width=12, message=FALSE, warning=FALSE}
 #Regroup the variables:
 ENIF18_df1$P5_7_2[ENIF18_df1$P5_7==5|ENIF18_df1$P5_7==6]<-'1'
 ENIF18_df1$P5_7_2[ENIF18_df1$P5_7==2]<-'2'
@@ -564,7 +562,7 @@ MEX_indicators %>% ggplot(aes(area=Respondents, fill=Reasons, subgroup=Reasons))
 
 Although the World Bank Group data indicate that the financial inclusion in Mexico is trapped, the amount of deposits and credit lines in the country had increased in the last years, whereas the credit portfolio quality had decreased. This indicates that the banks are collecting more money and installing more credit lines with better quality. In other words, the financial inclusion level in Mexico is not growing, but the amount of deposits and credits are.   
 
-```{r, echo=TRUE, fig.height=8, fig.width=14, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, fig.height=8, fig.width=14, message=FALSE, warning=FALSE}
 #Read the captation and credit data from the CNBV:
 CNBV_df1<-read_excel(path=here('Data','SH_BM_1118_1.xlsx'),sheet = 'Table_1'
                        ,range=cell_rows(1:217)
@@ -644,7 +642,7 @@ grid.arrange(p5, p6,ncol = 2, nrow = 1, top=textGrob("The Mexican banking indust
 Moreover, more than 70% of the deposits are hold by five banks, whereas the remaining is hold by more than 40 institutions, which indicates that the industry follows an oligopoly structure. Besides, these five banks hold only 52% of the branches in the country, which might be because of the geographical distribution of the customers. 
 
 
-```{r, echo=TRUE, message=FALSE, warning=FALSE,fig.height=8, fig.width=14}
+```{r, echo=FALSE, message=FALSE, warning=FALSE,fig.height=8, fig.width=14}
 #Branches vs Deposits:
 CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Sucursales'
                        ,range=cell_rows(1:618)
@@ -728,7 +726,7 @@ aux %>% ggplot(aes(x = x, y = y, fill = Bank)) +
 
 When analyzing the branches market distribution at State level, we found that there's a high concentration, BBVA, Banamex, Banorte, Banco Azteca and Santander hold at least 50% of the branches in each State.This indicates that the growing of the financial inclusion trap might be associated to an oligopoly at regional level.
 
-```{r,echo=TRUE, message=FALSE, warning=FALSE,fig.height=8, fig.width=14}
+```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.height=8, fig.width=14}
 CNBV_df2<-read_excel(path=here('Data','BM_Operativa_1118.xlsx'),sheet = 'Sucursales'
                      ,range=cell_rows(1:618)
                      ,col_names = TRUE
@@ -777,7 +775,7 @@ MEX_Branchs_State %>% ggplot( aes(x = "", y=`Branches Share`,fill = Group)) +
 
 Moreover, the oligopoly structure is affecting the competition in the industry in all the country, this can be shown by analyzing the concentration index (HHI) at municipal level. According to the international standards, a market is highly concentrated if the HHI index is above 2,500 points, moderately concentrated if the index is between 1,500 and 2,500, and not concentrated if the index is below 1,500. In the case of Mexico, only 7 out of 2,458 municipalities have an HHI below 1,500, whereas 2,222 municipalities have an index above 2,500. The problem with high concentrated markets is that the lack of competition might originate high prices, low quality services, among others.        
 
-```{r,echo=TRUE, message=FALSE, warning=FALSE , fig.height=8, fig.width=14}
+```{r,echo=FALSE, message=FALSE, warning=FALSE , fig.height=8, fig.width=14}
 MEX_map_state_df <- st_read(dsn=here('Data','MAPSMX_STATE'), layer="areas_geoestadisticas_estatales", quiet = TRUE)
 MEX_map_mun_df <- st_read(dsn=here('Data','MAPSMX_MUN'), layer="areas_geoestadisticas_municipales", quiet = TRUE)
 
